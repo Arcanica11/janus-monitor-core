@@ -46,12 +46,20 @@ export async function getClientFullDetails(clientId: string) {
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
 
+  // 6. Fetch Social Credentials (NEW)
+  const { data: social_credentials } = await supabase
+    .from("social_vault")
+    .select("*")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+
   return {
     client,
     credentials: credentials || [],
     services: services || [],
     domains: domains || [],
     tickets: tickets || [],
+    social_credentials: social_credentials || [],
   };
 }
 
@@ -208,6 +216,46 @@ export async function createTicket(clientId: string, formData: FormData) {
   if (error) {
     console.error("Error creating ticket:", error);
     return { error: "Error creando ticket" };
+  }
+
+  revalidatePath(`/dashboard/clients/${clientId}`);
+  return { success: true };
+}
+
+// CREATE SOCIAL CREDENTIAL
+export async function createSocialCredential(
+  clientId: string,
+  formData: FormData,
+) {
+  const supabase = await createClient();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .single();
+  if (!profile?.organization_id) return { error: "No org found" };
+
+  const platform = formData.get("platform") as string;
+  const username = formData.get("username") as string;
+  const password = formData.get("password") as string;
+  const recovery_email = formData.get("recovery_email") as string;
+  const url = formData.get("url") as string;
+  const notes = formData.get("notes") as string;
+
+  const { error } = await supabase.from("social_vault").insert({
+    client_id: clientId,
+    organization_id: profile.organization_id,
+    platform,
+    username,
+    password,
+    recovery_email,
+    url,
+    notes,
+  });
+
+  if (error) {
+    console.error("Error creating social credential:", error);
+    return { error: "Error creando credencial social" };
   }
 
   revalidatePath(`/dashboard/clients/${clientId}`);

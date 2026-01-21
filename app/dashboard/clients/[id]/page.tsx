@@ -3,6 +3,7 @@ import { ClientInfoTab } from "@/components/clients/ClientInfoTab";
 import { CredentialsTab } from "@/components/clients/CredentialsTab";
 import { FinancialOverviewTab } from "@/components/clients/FinancialOverviewTab";
 import { TicketsTab } from "@/components/clients/TicketsTab";
+import { SocialTab } from "@/components/clients/SocialTab";
 import { DomainsTable } from "@/components/dashboard/DomainsTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,14 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
     return notFound();
   }
 
-  const { client, credentials, services, domains, tickets } = data;
+  const {
+    client,
+    credentials,
+    services,
+    domains,
+    tickets,
+    social_credentials,
+  } = data;
 
   // Enrich domains with client info for the table reuse
   const enrichedDomains = domains.map((d: any) => ({
@@ -85,8 +93,11 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="tickets" className="space-y-4">
+      <Tabs defaultValue="social" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="social">
+            Redes ({social_credentials?.length || 0})
+          </TabsTrigger>
           <TabsTrigger value="tickets">Soporte ({tickets.length})</TabsTrigger>
           <TabsTrigger value="overview">Finanzas & Servicios</TabsTrigger>
           <TabsTrigger value="info">Perfil & Datos</TabsTrigger>
@@ -95,6 +106,13 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
           </TabsTrigger>
           <TabsTrigger value="domains_tech">Dominios (Técnico)</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="social">
+          <SocialTab
+            credentials={social_credentials || []}
+            clientId={client.id}
+          />
+        </TabsContent>
 
         <TabsContent value="tickets">
           <TicketsTab client={client} tickets={tickets} />

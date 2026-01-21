@@ -1,18 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import {
-  LogOut,
-  Home,
-  Globe,
-  Users,
-  Settings,
-  PlusCircle,
-  LayoutDashboard,
-  Shield,
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { SidebarNav } from "@/components/dashboard/SidebarNav";
 
 export default async function DashboardLayout({
   children,
@@ -67,85 +55,17 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-muted/40 font-sans">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-64 flex-col border-r bg-background sm:flex">
-        <div className="flex h-16 items-center border-b px-6">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 font-semibold"
-          >
-            {orgLogo ? (
-              <img src={orgLogo} alt={orgName} className="h-6 w-6" />
-            ) : (
-              <LayoutDashboard className="h-6 w-6" />
-            )}
-            <span>{orgName}</span>
-          </Link>
-        </div>
-        <nav className="flex flex-col gap-4 px-4 py-4">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-primary transition-all hover:text-primary"
-          >
-            <Home className="h-4 w-4" />
-            Resumen
-          </Link>
-          <Link
-            href="/dashboard/domains"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-          >
-            <Globe className="h-4 w-4" />
-            Dominios
-          </Link>
-          <Link
-            href="/dashboard/clients"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-          >
-            <Users className="h-4 w-4" />
-            Clientes
-          </Link>
-          <Link
-            href="#"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Migraciones
-          </Link>
-          {profile?.role === "super_admin" && (
-            <Link
-              href="/dashboard/team"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-              <Shield className="h-4 w-4" />
-              Equipo
-            </Link>
-          )}
-        </nav>
-        <div className="mt-auto p-4 border-t">
-          <div className="flex items-center gap-3 mb-4">
-            <Avatar>
-              <AvatarImage src="" />
-              <AvatarFallback>{userInitials}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">
-                {profile?.full_name || "Usuario"}
-              </span>
-              <span className="text-xs text-muted-foreground truncate w-32">
-                {user.email}
-              </span>
-            </div>
-          </div>
-          <form action={signOut}>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </form>
-        </div>
-      </aside>
+      {/* Sidebar */}
+      <SidebarNav
+        role={profile?.role}
+        organization={profile?.organizations as any}
+        user={{
+          email: user.email,
+          initials: userInitials,
+          fullName: profile?.full_name,
+        }}
+        signOutAction={signOut}
+      />
 
       {/* Main Content */}
       <main className="flex flex-1 flex-col sm:ml-64">

@@ -6,41 +6,84 @@ import { revalidatePath } from "next/cache";
 export async function getDashboardStats() {
   const supabase = await createClient();
 
-  // 1. Total Domains
-  const { count: totalDomains, error: errDomains } = await supabase
-    .from("domains")
+  // 1. Total Clients
+  const { count: totalClients, error: errClients } = await supabase
+    .from("clients")
     .select("*", { count: "exact", head: true });
 
-  // 2. Expiring Domains (< 30 days)
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-  const { count: expiringDomains, error: errExpiring } = await supabase
-    .from("domains")
+  // 2. Active Projects (not completed)
+  const { count: activeProjects, error: errProjects } = await supabase
+    .from("projects")
     .select("*", { count: "exact", head: true })
-    .lt("expiration_date", thirtyDaysFromNow.toISOString())
-    .eq("status", "active");
+    .not("status", "eq", "completed")
+    .not("status", "eq", "cancelled");
 
-  // 3. Open Tickets
+  // 3. Open Tickets (open or in_progress)
   const { count: openTickets, error: errTickets } = await supabase
     .from("tickets")
     .select("*", { count: "exact", head: true })
-    .neq("status", "resolved")
-    .neq("status", "closed");
+    .neq("status", "closed")
+    .neq("status", "resolved");
 
-  if (errDomains || errExpiring || errTickets) {
-    console.error("Error fetching stats:", errDomains, errExpiring, errTickets);
+  // 4. Calculate ARR (Annual Recurring Revenue)
+  // Fetch active domains renewal prices
+  const { data: domains, error: errDomains } = await supabase
+    .from("domains")
+    .select("renewal_price")
+    .eq("status", "active");
+
+  // Fetch active services costs
+  const { data: services, error: errServices } = await supabase
+    .from("services")
+    .select("cost, billing_cycle")
+    .eq("status", "active");
+
+  if (errClients || errProjects || errTickets || errDomains || errServices) {
+    console.error(
+      "Error fetching stats:",
+      errClients,
+      errProjects,
+      errTickets,
+      errDomains,
+      errServices,
+    );
+    // Return zeros on error but don't crash
     return {
-      totalDomains: 0,
-      expiringDomains: 0,
+      totalClients: 0,
+      activeProjects: 0,
       openTickets: 0,
+      revenue: 0,
     };
   }
 
+  let revenue = 0;
+
+  // Sum Domain Renewals (Assumed Yearly)
+  const domainRevenue =
+    domains?.reduce((sum, item) => {
+      const val = Number(item.renewal_price);
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0) || 0;
+
+  revenue += domainRevenue;
+
+  // Sum Services (Monthly * 12, Yearly * 1)
+  services?.forEach((s) => {
+    const cost = Number(s.cost || 0);
+    const safeCost = isNaN(cost) ? 0 : cost;
+
+    if (s.billing_cycle === "monthly") {
+      revenue += safeCost * 12;
+    } else if (s.billing_cycle === "yearly") {
+      revenue += safeCost;
+    }
+  });
+
   return {
-    totalDomains: totalDomains || 0,
-    expiringDomains: expiringDomains || 0,
-    openTickets: openTickets || 0,
+    totalClients: totalClients ?? 0,
+    activeProjects: activeProjects ?? 0,
+    openTickets: openTickets ?? 0,
+    revenue,
   };
 }
 
