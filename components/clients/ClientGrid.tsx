@@ -19,6 +19,9 @@ interface Client {
   unique_client_id: string;
   contact_email: string | null;
   domain_count?: number;
+  organizations?: {
+    name: string;
+  };
 }
 
 interface ClientGridProps {
@@ -70,9 +73,19 @@ export function ClientGrid({ clients }: ClientGridProps) {
               <div>
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                   <div className="space-y-1">
-                    <CardTitle className="text-lg font-bold truncate pr-2 leading-tight group-hover:text-primary transition-colors">
-                      {client.name}
-                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg font-bold truncate pr-2 leading-tight group-hover:text-primary transition-colors">
+                        {client.name}
+                      </CardTitle>
+                      {client.organizations && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
+                        >
+                          {client.organizations.name}
+                        </Badge>
+                      )}
+                    </div>
                     <Badge
                       variant="secondary"
                       className="font-mono text-[10px] uppercase tracking-wider"

@@ -16,7 +16,8 @@ export async function getClients() {
     .select(
       `
       *,
-      domains (count)
+      domains (count),
+      organizations (name)
     `,
     )
     .order("created_at", { ascending: false });
@@ -48,18 +49,29 @@ export async function createClientAction(formData: FormData) {
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
   const unique_client_id = `CLI-${randomSuffix}`;
 
-  // Fetch Organization ID explicitly to be safe
+  // Fetch Organization ID and Role explicitly
   const { data: profile } = await supabase
     .from("profiles")
-    .select("organization_id")
+    .select("organization_id, role")
     .single();
 
   if (!profile?.organization_id) {
     return { error: "No se pudo identificar tu organización." };
   }
 
+  // Determine target Organization ID
+  let targetOrgId = profile.organization_id;
+
+  // Super Admin Logic: Allow override
+  if (profile.role === "super_admin") {
+    const overrideOrgId = formData.get("organization_id") as string;
+    if (overrideOrgId && overrideOrgId !== "undefined") {
+      targetOrgId = overrideOrgId;
+    }
+  }
+
   const { error } = await supabase.from("clients").insert({
-    organization_id: profile.organization_id,
+    organization_id: targetOrgId,
     name,
     contact_email: email,
     unique_client_id,
@@ -81,4 +93,29 @@ export async function createClientAction(formData: FormData) {
 
   revalidatePath("/dashboard/clients");
   return { success: true };
+}
+
+export async function getAllOrganizations() {
+  const supabase = await createClient();
+
+  // Security check: Only super_admin should access this list?
+  // Ideally we check role, but RLS might handle it if we set it up correctly.
+  // However, explicit check is better for UI logic.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .single();
+
+  if (profile?.role !== "super_admin") {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .order("name");
+
+  if (error) return [];
+
+  return data;
 }

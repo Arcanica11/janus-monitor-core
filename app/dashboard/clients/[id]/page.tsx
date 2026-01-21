@@ -64,12 +64,23 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
               <Badge variant="outline" className="text-muted-foreground">
                 {client.industry || "Sin Rubro"}
               </Badge>
+              {client.organizations && (
+                <Badge
+                  variant="outline"
+                  className="border-blue-200 text-blue-700 bg-blue-50"
+                >
+                  🏢 {client.organizations.name}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center text-muted-foreground mt-1 text-sm bg-muted/40 w-fit px-2 py-0.5 rounded-full">
               <Building2 className="mr-2 h-3 w-3" />
               {client.contact_email}
             </div>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <AddDomainDialog clients={[client]} preselectedClientId={client.id} />
         </div>
       </div>
 

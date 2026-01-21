@@ -1,12 +1,21 @@
-import { getClients } from "./actions";
+import { getClients, getAllOrganizations } from "./actions";
 import { ClientGrid } from "@/components/clients/ClientGrid";
 import { AddClientSheet } from "@/components/clients/AddClientSheet";
 import { Separator } from "@/components/ui/separator";
+import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientsPage() {
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .single();
+  const isSuperAdmin = profile?.role === "super_admin";
+
   const clients = await getClients();
+  const organizations = isSuperAdmin ? await getAllOrganizations() : [];
 
   return (
     <div className="space-y-6">
@@ -19,7 +28,10 @@ export default async function ClientsPage() {
             Administra las empresas y agencias que tienen servicios contratados.
           </p>
         </div>
-        <AddClientSheet />
+        <AddClientSheet
+          isSuperAdmin={isSuperAdmin}
+          organizations={organizations}
+        />
       </div>
       <Separator />
 

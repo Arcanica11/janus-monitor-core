@@ -31,12 +31,17 @@ interface Client {
 
 interface AddDomainDialogProps {
   clients: Client[];
+  preselectedClientId?: string;
 }
 
-export function AddDomainDialog({ clients }: AddDomainDialogProps) {
+export function AddDomainDialog({
+  clients,
+  preselectedClientId,
+}: AddDomainDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ... (async function handleSubmit remains same)
   async function handleSubmit(formData: FormData) {
     setIsLoading(true);
     const res = await addDomain(formData);
@@ -59,6 +64,7 @@ export function AddDomainDialog({ clients }: AddDomainDialogProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
+        {/* ... (DialogHeader remains same) */}
         <DialogHeader>
           <DialogTitle>Nuevo Dominio</DialogTitle>
           <DialogDescription>
@@ -84,7 +90,12 @@ export function AddDomainDialog({ clients }: AddDomainDialogProps) {
                 Cliente
               </Label>
               <div className="col-span-3">
-                <Select name="client_id" required>
+                <Select
+                  name="client_id"
+                  required
+                  defaultValue={preselectedClientId}
+                  disabled={!!preselectedClientId}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar cliente" />
                   </SelectTrigger>
@@ -96,6 +107,14 @@ export function AddDomainDialog({ clients }: AddDomainDialogProps) {
                     ))}
                   </SelectContent>
                 </Select>
+                {/* Hidden input to ensure value is submitted when disabled */}
+                {preselectedClientId && (
+                  <input
+                    type="hidden"
+                    name="client_id"
+                    value={preselectedClientId}
+                  />
+                )}
               </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

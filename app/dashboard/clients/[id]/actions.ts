@@ -10,7 +10,7 @@ export async function getClientFullDetails(clientId: string) {
   // 1. Fetch Client Basic Info
   const { data: client, error: clientError } = await supabase
     .from("clients")
-    .select("*")
+    .select("*, organizations(name)")
     .eq("id", clientId)
     .single();
 

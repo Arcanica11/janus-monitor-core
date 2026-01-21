@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -15,18 +14,35 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Plus, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-export function AddClientSheet() {
+interface Organization {
+  id: string;
+  name: string;
+}
+
+interface AddClientSheetProps {
+  isSuperAdmin?: boolean;
+  organizations?: Organization[];
+}
+
+export function AddClientSheet({
+  isSuperAdmin = false,
+  organizations = [],
+}: AddClientSheetProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    setIsLoading(true);
     const res = await createClientAction(formData);
-    setIsLoading(false);
 
     if (res?.error) {
       toast.error(res.error);
@@ -44,7 +60,6 @@ export function AddClientSheet() {
           Nuevo Cliente
         </Button>
       </SheetTrigger>
-      {/* Added sm:max-w-[500px] specifically for better width control, usually SheetContent has default padding but we can enforce more if needed */}
       <SheetContent className="sm:max-w-[540px] p-6">
         <SheetHeader className="mb-6">
           <SheetTitle className="text-2xl">Agregar Cliente</SheetTitle>
@@ -65,6 +80,30 @@ export function AddClientSheet() {
               className="h-10"
             />
           </div>
+
+          {isSuperAdmin && (
+            <div className="space-y-2">
+              <Label
+                htmlFor="organization_id"
+                className="text-blue-600 font-medium"
+              >
+                Asignar a Organización
+              </Label>
+              <Select name="organization_id">
+                <SelectTrigger className="h-10 border-blue-200 bg-blue-50/50">
+                  <SelectValue placeholder="Seleccionar Organización..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label
               htmlFor="contact_email"
