@@ -1,0 +1,120 @@
+import { getClientFullDetails } from "./actions";
+import { ClientInfoTab } from "@/components/clients/ClientInfoTab";
+import { CredentialsTab } from "@/components/clients/CredentialsTab";
+import { FinancialOverviewTab } from "@/components/clients/FinancialOverviewTab";
+import { TicketsTab } from "@/components/clients/TicketsTab";
+import { DomainsTable } from "@/components/dashboard/DomainsTable";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ArrowLeft, Building2 } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { AddDomainDialog } from "@/components/dashboard/AddDomainDialog";
+
+export const dynamic = "force-dynamic";
+
+interface ClientPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export default async function ClientDetailPage({ params }: ClientPageProps) {
+  const { id } = await params;
+  const data = await getClientFullDetails(id);
+
+  if (!data) {
+    return notFound();
+  }
+
+  const { client, credentials, services, domains, tickets } = data;
+
+  // Enrich domains with client info for the table reuse
+  const enrichedDomains = domains.map((d: any) => ({
+    ...d,
+    clients: { name: client.name },
+  }));
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/clients">
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">
+                {client.name}
+              </h1>
+              <Badge variant="secondary" className="font-mono text-base">
+                {client.unique_client_id}
+              </Badge>
+              <Badge variant="outline" className="text-muted-foreground">
+                {client.industry || "Sin Rubro"}
+              </Badge>
+            </div>
+            <div className="flex items-center text-muted-foreground mt-1 text-sm bg-muted/40 w-fit px-2 py-0.5 rounded-full">
+              <Building2 className="mr-2 h-3 w-3" />
+              {client.contact_email}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="tickets" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="tickets">Soporte ({tickets.length})</TabsTrigger>
+          <TabsTrigger value="overview">Finanzas & Servicios</TabsTrigger>
+          <TabsTrigger value="info">Perfil & Datos</TabsTrigger>
+          <TabsTrigger value="credentials">
+            Bóveda ({credentials.length})
+          </TabsTrigger>
+          <TabsTrigger value="domains_tech">Dominios (Técnico)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tickets">
+          <TicketsTab client={client} tickets={tickets} />
+        </TabsContent>
+
+        <TabsContent value="overview">
+          <FinancialOverviewTab services={services} domains={domains} />
+        </TabsContent>
+
+        <TabsContent value="info">
+          <ClientInfoTab client={client} />
+        </TabsContent>
+
+        <TabsContent value="credentials">
+          <CredentialsTab clientId={client.id} credentials={credentials} />
+        </TabsContent>
+
+        <TabsContent value="domains_tech">
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle Técnico de Dominios</CardTitle>
+              <CardDescription>
+                Información DNS, proveedores y estados técnicos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DomainsTable domains={enrichedDomains} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

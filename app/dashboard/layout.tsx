@@ -9,6 +9,7 @@ import {
   Settings,
   PlusCircle,
   LayoutDashboard,
+  Shield,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,15 @@ export default async function DashboardLayout({
             <PlusCircle className="h-4 w-4" />
             Migraciones
           </Link>
+          {profile?.role === "super_admin" && (
+            <Link
+              href="/dashboard/team"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+            >
+              <Shield className="h-4 w-4" />
+              Equipo
+            </Link>
+          )}
         </nav>
         <div className="mt-auto p-4 border-t">
           <div className="flex items-center gap-3 mb-4">

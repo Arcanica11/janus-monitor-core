@@ -131,6 +131,25 @@ export function AddDomainDialog({ clients }: AddDomainDialogProps) {
                 required
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="renewal_price" className="text-right">
+                Renovación
+              </Label>
+              <div className="col-span-3 relative">
+                <span className="absolute left-3 top-2.5 text-muted-foreground">
+                  $
+                </span>
+                <Input
+                  id="renewal_price"
+                  name="renewal_price"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="pl-7"
+                  required
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>

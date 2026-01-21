@@ -14,21 +14,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleAction(
     action: typeof login | typeof signup,
     formData: FormData,
   ) {
     setIsLoading(true);
+    setError(null);
     const result = await action(formData);
     setIsLoading(false);
 
     if (result?.error) {
+      setError(result.error);
       toast.error(result.error);
     }
   }
@@ -36,10 +40,23 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background px-4">
       <Tabs defaultValue="login" className="w-[400px]">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
           <TabsTrigger value="signup">Registrarse</TabsTrigger>
         </TabsList>
+
+        {error && (
+          <div className="mb-4">
+            <Alert
+              variant="destructive"
+              className="animate-in fade-in zoom-in duration-300"
+            >
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
 
         <TabsContent value="login">
           <Card>
@@ -72,7 +89,11 @@ export default function LoginPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
+                >
                   {isLoading && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
@@ -123,7 +144,11 @@ export default function LoginPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
+                >
                   {isLoading && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

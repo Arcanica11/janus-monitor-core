@@ -7,11 +7,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns"; // Assuming standard JS date handling or simple format
-import { es } from "date-fns/locale"; // Optional if we want full ES localization logic, but standard JS is fine too if minimal.
-
-// We will use standard Intl for date formatting to avoid extra heavy deps if not strictly needed,
-// but user asked for "DD/MM/YYYY".
+import { format, differenceInDays } from "date-fns";
+import { es } from "date-fns/locale";
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
 
 interface Domain {
   id: string;
@@ -21,7 +19,8 @@ interface Domain {
   status: string;
   clients: {
     name: string;
-  } | null; // Should technically not be null based on schema but handling safe access
+    unique_client_id?: string;
+  } | null;
 }
 
 interface DomainsTableProps {
@@ -29,36 +28,51 @@ interface DomainsTableProps {
 }
 
 export function DomainsTable({ domains }: DomainsTableProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
   const getStatusBadge = (dateString: string, status: string) => {
     const expiryDate = new Date(dateString);
     const now = new Date();
-    const diffTime = expiryDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const daysLeft = differenceInDays(expiryDate, now);
 
     if (status !== "active") {
-      return <Badge variant="destructive">Inactivo</Badge>;
+      return <Badge variant="outline">Inactivo</Badge>;
     }
 
-    if (diffDays < 0) {
-      return <Badge variant="destructive">Vencido</Badge>;
-    } else if (diffDays <= 30) {
+    if (daysLeft < 0) {
       return (
-        <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">
-          Por Vencer ({diffDays}d)
+        <Badge variant="destructive" className="gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Vencido ({Math.abs(daysLeft)}d)
         </Badge>
       );
-    } else {
-      return <Badge className="bg-green-600 hover:bg-green-700">Activo</Badge>;
     }
+
+    if (daysLeft <= 7) {
+      return (
+        <Badge
+          variant="destructive"
+          className="gap-1 bg-red-600 hover:bg-red-700"
+        >
+          <AlertTriangle className="h-3 w-3" />
+          Crítico ({daysLeft}d)
+        </Badge>
+      );
+    }
+
+    if (daysLeft <= 30) {
+      return (
+        <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black gap-1">
+          <Clock className="h-3 w-3" />
+          Por Vencer ({daysLeft}d)
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge className="bg-green-600 hover:bg-green-700 gap-1">
+        <CheckCircle className="h-3 w-3" />
+        Saludable
+      </Badge>
+    );
   };
 
   return (
@@ -67,30 +81,43 @@ export function DomainsTable({ domains }: DomainsTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Cliente</TableHead>
-            <TableHead>URL</TableHead>
+            <TableHead>Dominio / URL</TableHead>
             <TableHead>Proveedor</TableHead>
             <TableHead>Vencimiento</TableHead>
-            <TableHead>Estado</TableHead>
+            <TableHead>Alertas</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {domains.map((domain) => (
             <TableRow key={domain.id}>
               <TableCell className="font-medium">
-                {domain.clients?.name || "---"}
+                {domain.clients?.name ? (
+                  <div className="flex flex-col">
+                    <span>{domain.clients.name}</span>
+                    {/* <span className="text-xs text-muted-foreground">{domain.clients.unique_client_id}</span> */}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    Sin Asignar
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 <a
                   href={`https://${domain.url}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:underline text-blue-500"
+                  className="hover:underline text-indigo-500 font-medium"
                 >
                   {domain.url}
                 </a>
               </TableCell>
               <TableCell>{domain.provider}</TableCell>
-              <TableCell>{formatDate(domain.expiration_date)}</TableCell>
+              <TableCell className="capitalize">
+                {format(new Date(domain.expiration_date), "dd MMM yyyy", {
+                  locale: es,
+                })}
+              </TableCell>
               <TableCell>
                 {getStatusBadge(domain.expiration_date, domain.status)}
               </TableCell>

@@ -6,9 +6,6 @@ import { revalidatePath } from "next/cache";
 export async function getDashboardStats() {
   const supabase = await createClient();
 
-  // Thanks to RLS, simple counts work scoped to the user's permissions
-  // unless we are super_admin, then we see everything (as per RLS policies)
-
   // 1. Total Domains
   const { count: totalDomains, error: errDomains } = await supabase
     .from("domains")
@@ -56,7 +53,8 @@ export async function getDomains() {
       `
       *,
       clients (
-        name
+        name,
+        unique_client_id
       )
     `,
     )
@@ -86,6 +84,22 @@ export async function getClients() {
   return data;
 }
 
+export async function getClientsForSelect() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, name")
+    .order("name");
+
+  if (error) {
+    console.error("Error fetching clients for select:", error);
+    return [];
+  }
+
+  return data;
+}
+
 export async function addDomain(formData: FormData) {
   const supabase = await createClient();
 
@@ -93,8 +107,14 @@ export async function addDomain(formData: FormData) {
   const client_id = formData.get("client_id") as string;
   const provider = formData.get("provider") as string;
   const expiration_date = formData.get("expiration_date") as string;
+  const renewal_price = formData.get("renewal_price")
+    ? parseFloat(formData.get("renewal_price") as string)
+    : 0;
 
-  // We need to get the user's organization_id to insert correctly
+  if (!client_id) {
+    return { error: "Debes seleccionar un cliente." };
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("organization_id")
@@ -109,11 +129,13 @@ export async function addDomain(formData: FormData) {
     linked_client_id: client_id,
     provider,
     expiration_date: new Date(expiration_date).toISOString(),
-    organization_id: profile.organization_id, // Explicitly setting this, though RLS context often handles it if set up via headers, but here we are explicit.
+    organization_id: profile.organization_id,
+    renewal_price: renewal_price,
   });
 
   if (error) {
-    return { error: error.message };
+    console.error("Add Domain Error:", error);
+    return { error: "Error al crear dominio. Verifica los datos." };
   }
 
   revalidatePath("/dashboard");

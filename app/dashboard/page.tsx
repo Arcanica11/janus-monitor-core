@@ -1,4 +1,4 @@
-import { getDashboardStats, getDomains, getClients } from "./actions";
+import { getDashboardStats, getDomains, getClientsForSelect } from "./actions";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { DomainsTable } from "@/components/dashboard/DomainsTable";
 import { AddDomainDialog } from "@/components/dashboard/AddDomainDialog";
@@ -9,7 +9,7 @@ export default async function DashboardPage() {
   const [stats, domains, clients] = await Promise.all([
     getDashboardStats(),
     getDomains(),
-    getClients(),
+    getClientsForSelect(),
   ]);
 
   return (
