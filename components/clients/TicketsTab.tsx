@@ -20,16 +20,25 @@ import { Button } from "@/components/ui/button";
 import { AddTicketDialog } from "./AddTicketDialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertCircle,
   CheckCircle2,
   Clock,
   Hammer,
-  LifeBuoy,
   Zap,
+  MoreHorizontal,
+  ChevronDown,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { updateTicketStatus } from "@/app/dashboard/clients/[id]/actions";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface Ticket {
   id: string;
@@ -53,6 +62,7 @@ interface TicketsTabProps {
 }
 
 export function TicketsTab({ client, tickets }: TicketsTabProps) {
+  const router = useRouter();
   // Calculate Maintenance Usage for current year
   const currentYear = new Date().getFullYear();
   const maintenanceTicketsUsed = tickets.filter(
@@ -99,15 +109,44 @@ export function TicketsTab({ client, tickets }: TicketsTabProps) {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "closed":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        return (
+          <Badge className="bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer">
+            <CheckCircle2 className="mr-1 h-3 w-3" /> Cerrado{" "}
+            <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+          </Badge>
+        );
       case "in_progress":
-        return <Zap className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-slate-400" />;
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 cursor-pointer">
+            <Zap className="mr-1 h-3 w-3" /> En Progreso{" "}
+            <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+          </Badge>
+        );
+      case "cancelled":
+        return (
+          <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer">
+            Cancelado <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+          </Badge>
+        );
+      default: // open
+        return (
+          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
+            <Clock className="mr-1 h-3 w-3" /> Abierto{" "}
+            <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+          </Badge>
+        );
     }
+  };
+
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    toast.promise(updateTicketStatus(ticketId, newStatus, client.id), {
+      loading: "Actualizando estado...",
+      success: "Estado actualizado",
+      error: "Error al actualizar",
+    });
   };
 
   const formatCurrency = (amount: number) => {
@@ -230,16 +269,41 @@ export function TicketsTab({ client, tickets }: TicketsTabProps) {
                     </TableCell>
                     <TableCell>{getTypeBadge(ticket.type)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(ticket.status)}
-                        <span className="capitalize text-sm">
-                          {ticket.status === "in_progress"
-                            ? "En Progreso"
-                            : ticket.status === "closed"
-                              ? "Cerrado"
-                              : "Abierto"}
-                        </span>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          {getStatusBadge(ticket.status)}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusChange(ticket.id, "open")
+                            }
+                          >
+                            Abierto
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusChange(ticket.id, "in_progress")
+                            }
+                          >
+                            En Progreso
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusChange(ticket.id, "closed")
+                            }
+                          >
+                            Cerrado
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusChange(ticket.id, "cancelled")
+                            }
+                          >
+                            Cancelado
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {ticket.is_billable ? (

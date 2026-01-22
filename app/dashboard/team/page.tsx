@@ -1,5 +1,6 @@
 import { getUsers, getOrganizations } from "./actions";
 import { UserTable } from "@/components/team/UserTable";
+import { AddUserDialog } from "@/components/team/AddUserDialog";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
@@ -55,6 +56,7 @@ export default async function TeamPage() {
             Control de acceso y roles para administradores de la plataforma.
           </p>
         </div>
+        <AddUserDialog organizations={organizations || []} />
       </div>
 
       <UserTable users={teamMembers} organizations={organizations || []} />

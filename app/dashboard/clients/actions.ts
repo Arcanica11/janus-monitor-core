@@ -95,7 +95,7 @@ export async function createClientAction(formData: FormData) {
   return { success: true };
 }
 
-export async function getAllOrganizations() {
+export async function getOrganizations() {
   const supabase = await createClient();
 
   // Security check: Only super_admin should access this list?
@@ -118,4 +118,43 @@ export async function getAllOrganizations() {
   if (error) return [];
 
   return data;
+}
+
+// CREACIÓN RÁPIDA (QUICK CREATE)
+// CREACIÓN RÁPIDA (QUICK CREATE)
+export async function quickCreateClient(name: string) {
+  const supabase = await createClient();
+
+  // 1. Obtener Org
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .single();
+
+  if (!profile?.organization_id) {
+    // Fallback para Super Admin si no tiene org en perfil (raro, pero posible)
+    // Podríamos buscar la org "default" o lanzar error.
+    return {
+      error: "No tienes una organización asignada para crear clientes.",
+    };
+  }
+
+  // 2. Insertar
+  const { data, error } = await supabase
+    .from("clients")
+    .insert({
+      name,
+      organization_id: profile.organization_id,
+      status: "active",
+    })
+    .select("id, name")
+    .single();
+
+  if (error) return { error: error.message };
+
+  // 3. Revalidación POTENTE
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/clients");
+
+  return { success: true, client: data };
 }

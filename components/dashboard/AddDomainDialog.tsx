@@ -40,10 +40,19 @@ export function AddDomainDialog({
 }: AddDomainDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [clientId, setClientId] = useState(preselectedClientId || "");
 
-  // ... (async function handleSubmit remains same)
   async function handleSubmit(formData: FormData) {
     setIsLoading(true);
+
+    if (!clientId) {
+      toast.error("Debes seleccionar un cliente");
+      setIsLoading(false);
+      return;
+    }
+
+    formData.append("client_id", clientId);
+
     const res = await addDomain(formData);
     setIsLoading(false);
 
@@ -52,6 +61,9 @@ export function AddDomainDialog({
     } else {
       toast.success("Dominio agregado correctamente");
       setOpen(false);
+      if (!preselectedClientId) {
+        setClientId("");
+      }
     }
   }
 
@@ -64,7 +76,6 @@ export function AddDomainDialog({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        {/* ... (DialogHeader remains same) */}
         <DialogHeader>
           <DialogTitle>Nuevo Dominio</DialogTitle>
           <DialogDescription>
@@ -85,38 +96,37 @@ export function AddDomainDialog({
                 required
               />
             </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="client" className="text-right">
                 Cliente
               </Label>
-              <div className="col-span-3">
+              <div className="col-span-3 space-y-1">
                 <Select
-                  name="client_id"
-                  required
-                  defaultValue={preselectedClientId}
+                  value={clientId}
+                  onValueChange={setClientId}
                   disabled={!!preselectedClientId}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleccionar cliente..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {/* Hidden input to ensure value is submitted when disabled */}
-                {preselectedClientId && (
-                  <input
-                    type="hidden"
-                    name="client_id"
-                    value={preselectedClientId}
-                  />
+                {!preselectedClientId && (
+                  <p className="text-[10px] text-muted-foreground">
+                    ¿No encuentras el cliente? Créalo primero en la sección
+                    Clientes.
+                  </p>
                 )}
               </div>
             </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="provider" className="text-right">
                 Proveedor
@@ -138,6 +148,7 @@ export function AddDomainDialog({
                 </Select>
               </div>
             </div>
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="expiration_date" className="text-right">
                 Vence

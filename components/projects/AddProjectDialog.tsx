@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,6 +77,10 @@ export function AddProjectDialog({ clients }: AddProjectDialogProps) {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground">
+                ¿No encuentras el cliente? Créalo primero en la sección
+                Clientes.
+              </p>
             </div>
 
             <div className="col-span-2 space-y-2">
