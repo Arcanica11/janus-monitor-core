@@ -1,10 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClientAction } from "@/app/dashboard/clients/actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +8,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,15 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
+import { createClientAction } from "@/app/dashboard/clients/actions";
 import { toast } from "sonner";
+import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// Definición de Props
 interface AddClientSheetProps {
   isSuperAdmin: boolean;
   organizations: { id: string; name: string }[];
-  currentOrgId?: string; // Kept for safety if passed
 }
 
 export function AddClientSheet({
@@ -36,30 +34,37 @@ export function AddClientSheet({
 }: AddClientSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState("");
   const router = useRouter();
 
-  // Manejador Síncrono (Bloqueo instantáneo)
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // 1. Detener el navegador
+    e.preventDefault();
+    if (isLoading) return;
 
-    if (isLoading) return; // 2. Si ya está cargando, ignorar clics extra
-    setIsLoading(true); // 3. Activar spinner
+    if (isSuperAdmin && !selectedOrg) {
+      toast.error("Selecciona una organización.");
+      return;
+    }
 
+    setIsLoading(true);
     try {
       const formData = new FormData(e.currentTarget);
+      if (isSuperAdmin) formData.set("organization_id", selectedOrg);
+
       const res = await createClientAction(formData);
 
       if (res?.error) {
         toast.error(res.error);
       } else {
-        toast.success("Cliente creado exitosamente");
+        toast.success("Cliente creado");
         setIsOpen(false);
+        setSelectedOrg("");
         router.refresh();
       }
-    } catch (error) {
+    } catch (e) {
       toast.error("Error de conexión");
     } finally {
-      setIsLoading(false); // 4. Liberar botón
+      setIsLoading(false);
     }
   };
 
@@ -70,37 +75,18 @@ export function AddClientSheet({
           <Plus className="mr-2 h-4 w-4" /> Nuevo Cliente
         </Button>
       </SheetTrigger>
-      <SheetContent className="sm:max-w-[540px] p-6">
-        <SheetHeader className="mb-6">
-          <SheetTitle className="text-2xl">Agregar Cliente</SheetTitle>
+      <SheetContent className="w-[400px] sm:w-[540px]">
+        <SheetHeader>
+          <SheetTitle>Agregar Nuevo Cliente</SheetTitle>
         </SheetHeader>
 
-        {/* Usamos onSubmit en lugar de action */}
-        <form onSubmit={onSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-foreground font-medium">
-              Nombre de la Empresa
-            </Label>
-            <Input
-              id="name"
-              name="name"
-              placeholder="Ej: Rueda la Rola"
-              required
-              className="h-10"
-            />
-          </div>
-
-          {/* SELECTOR DE ORGANIZACIÓN (SOLO SUPER ADMIN) */}
-          {isSuperAdmin && organizations.length > 0 && (
-            <div className="space-y-2">
-              <Label
-                htmlFor="organization_id"
-                className="text-blue-600 font-medium"
-              >
-                Asignar a Organización
-              </Label>
-              <Select name="organization_id" defaultValue={organizations[0].id}>
-                <SelectTrigger className="h-10 border-blue-200 bg-blue-50/50">
+        {/* FIX VISUAL: Margen superior y espaciado vertical */}
+        <form onSubmit={onSubmit} className="mt-8 space-y-6">
+          {isSuperAdmin && (
+            <div className="space-y-2 p-4 bg-slate-50 rounded-md border">
+              <Label>Asignar Organización</Label>
+              <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Selecciona empresa..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -111,38 +97,31 @@ export function AddClientSheet({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Como Super Admin, eliges quién es el dueño del cliente.
-              </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label
-              htmlFor="contact_email"
-              className="text-foreground font-medium"
-            >
-              Email de Contacto (Opcional)
-            </Label>
+            <Label htmlFor="name">Nombre del Cliente</Label>
             <Input
-              id="contact_email"
-              name="contact_email"
-              type="email"
-              placeholder="contacto@cliente.com"
-              className="h-10"
+              id="name"
+              name="name"
+              required
+              placeholder="Ej: Restaurante XYZ"
             />
           </div>
 
-          <div className="mt-8 flex justify-end">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full sm:w-auto h-10 px-8"
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Creando..." : "Crear Cliente"}
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor="contact_email">Email (Opcional)</Label>
+            <Input id="contact_email" name="contact_email" type="email" />
           </div>
+
+          <Button type="submit" disabled={isLoading} className="w-full">
+            {isLoading ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Guardar Cliente"
+            )}
+          </Button>
         </form>
       </SheetContent>
     </Sheet>

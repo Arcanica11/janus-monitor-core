@@ -31,7 +31,6 @@ export default async function ClientsPage() {
         <AddClientSheet
           isSuperAdmin={isSuperAdmin}
           organizations={organizations}
-          currentOrgId={profile?.organization_id}
         />
       </div>
       <Separator />

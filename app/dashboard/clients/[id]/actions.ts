@@ -193,7 +193,7 @@ export async function createSocialCredential(
 }
 
 // 9. ACTUALIZAR ESTADO DE TICKET (LA FUNCIÓN QUE FALTABA)
-export async function updateTicketStatus(ticketId: string, status: string) {
+export async function updateTicketStatus(ticketId: string, status: string, id: string) {
   const supabase = await createClient();
 
   // Actualizamos
