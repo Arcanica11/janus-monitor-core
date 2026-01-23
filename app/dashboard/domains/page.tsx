@@ -1,5 +1,5 @@
 import { getAllDomains } from "./actions";
-import { DomainsList } from "@/components/dashboard/DomainsList";
+import { DomainsTable } from "@/components/dashboard/DomainsTable";
 import { AddDomainDialog } from "@/components/dashboard/AddDomainDialog";
 import { getClientsForSelect } from "@/app/dashboard/actions";
 import { createClient } from "@/utils/supabase/server";
@@ -38,16 +38,16 @@ export default async function DomainsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Dominios
+            Dominios Master
           </h1>
           <p className="text-muted-foreground">
-            Gestión global de dominios y vencimientos.
+            Gestión centralizada de todos los dominios (propios y de clientes).
           </p>
         </div>
         <AddDomainDialog clients={clients} />
       </div>
 
-      <DomainsList initialDomains={domains as any} />
+      <DomainsTable domains={domains as any} />
     </div>
   );
 }

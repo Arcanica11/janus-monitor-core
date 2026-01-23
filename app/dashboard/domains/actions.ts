@@ -4,128 +4,217 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { revalidatePath } from "next/cache";
 
+// SECURITY: Double-Lock - Explicit Organization Filtering
+// NEVER rely solely on RLS for multi-tenant isolation
 export async function getAllDomains() {
   const supabase = await createClient();
 
-  const { data: profile } = await supabase
+  // 1. Verify Authenticated User
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    console.error(">>> [SECURITY] getAllDomains: No authenticated user");
+    throw new Error("No autorizado");
+  }
+
+  console.log(">>> [SECURITY] getAllDomains: User authenticated:", user.id);
+
+  // 2. Get User's Organization ID (Current Context)
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("organization_id, role")
+    .eq("id", user.id)
     .single();
 
-  console.log(">>> [DEBUG DOMAINS] getAllDomains: Profile:", profile);
+  if (profileError || !profile?.organization_id) {
+    console.error(
+      ">>> [SECURITY] getAllDomains: User has no organization",
+      profileError,
+    );
+    throw new Error("Usuario no tiene organización asignada");
+  }
 
-  let query = supabase
-    .from("domains")
+  console.log(
+    `>>> [SECURITY] getAllDomains: User org=${profile.organization_id}, role=${profile.role}`,
+  );
+
+  // 3. DOUBLE-LOCK Query: Only domains from THIS organization
+  // CRITICAL: Explicit .eq() filter - DO NOT remove this
+  const { data, error } = await supabase
+    .from("domains_master")
     .select(
       `
       *,
       clients (
         name,
         unique_client_id
+      ),
+      organizations (
+        name
       )
     `,
     )
-    .order("expiration_date", { ascending: true }); // Expiring soon first
-
-  // Filter by organization if not super admin
-  if (profile?.role !== "super_admin" && profile?.organization_id) {
-    console.log(
-      ">>> [DEBUG DOMAINS] getAllDomains: Filtering by org",
-      profile.organization_id,
-    );
-    query = query.eq("organization_id", profile.organization_id);
-  } else {
-    console.log(
-      ">>> [DEBUG DOMAINS] getAllDomains: Super Admin or No Org - Fetching All",
-    );
-  }
-
-  const { data, error } = await query;
+    .eq("organization_id", profile.organization_id) // 🔒 LOCK: Only this org
+    .order("expiration_date", { ascending: true });
 
   if (error) {
-    console.error(
-      ">>> [DEBUG DOMAINS] getAllDomains: Error fetching all domains:",
-      error,
-    );
-    return [];
+    console.error(">>> [SECURITY] getAllDomains: Query error:", error);
+    throw new Error(error.message);
   }
 
   console.log(
-    `>>> [DEBUG DOMAINS] getAllDomains: Found ${data?.length || 0} domains`,
+    `>>> [SECURITY] getAllDomains: Returned ${data?.length || 0} domains for org ${profile.organization_id}`,
   );
-  return data;
+
+  return data || [];
 }
 
-export async function addDomain(formData: FormData) {
-  const supabase = await createClient();
-  // We use admin client to lookup orgs and insert to bypass RLS issues
-  // when the user is a super admin but context might be loose
+export async function addDomainMaster(formData: FormData) {
   const admin = createAdminClient();
+  const supabase = await createClient();
 
-  const url = formData.get("url") as string;
-  const client_id = formData.get("client_id") as string;
-  const provider = formData.get("provider") as string;
-  const provider_account = formData.get("provider_account") as string;
-  const expiration_date = formData.get("expiration_date") as string;
+  // Extract form data
+  const domain = formData.get("domain") as string;
+  const clientIdRaw = formData.get("client_id") as string;
+  const registrar = formData.get("registrar") as string;
+  const hosting_provider = formData.get("hosting_provider") as string;
+  const account_owner = formData.get("account_owner") as string;
   const renewal_price = formData.get("renewal_price")
     ? parseFloat(formData.get("renewal_price") as string)
     : 0;
+  const expiration_date = formData.get("expiration_date") as string;
 
-  console.log(">>> [DEBUG DOMAINS] addDomain: Started...", {
-    url,
-    client_id,
-    provider,
-    provider_account,
+  console.log(">>> [DEBUG DOMAINS] addDomainMaster: Started...", {
+    domain,
+    clientIdRaw,
+    registrar,
+    hosting_provider,
+    account_owner,
   });
 
-  if (!client_id) {
-    return { error: "Debes seleccionar un cliente." };
+  if (!domain) {
+    return { error: "El dominio es requerido." };
   }
 
-  // 1. LOOKUP ORGANIZATION VIA CLIENT ID (The Safe Way)
+  // Handle client_id (null = Interno/Org-owned)
+  const client_id =
+    clientIdRaw && clientIdRaw !== "null" && clientIdRaw !== ""
+      ? clientIdRaw
+      : null;
+
+  // Get organization_id
+  let organization_id: string;
+
+  if (client_id) {
+    // Lookup organization via client
+    const { data: clientData, error: clientError } = await admin
+      .from("clients")
+      .select("organization_id")
+      .eq("id", client_id)
+      .single();
+
+    if (clientError || !clientData) {
+      console.error(
+        ">>> [DEBUG DOMAINS] addDomainMaster: Error finding client org:",
+        clientError,
+      );
+      return { error: "No se pudo validar la organización del cliente." };
+    }
+
+    organization_id = clientData.organization_id;
+  } else {
+    // Internal domain - use current user's organization
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("organization_id")
+      .single();
+
+    if (!profile?.organization_id) {
+      return { error: "No se pudo determinar la organización." };
+    }
+
+    organization_id = profile.organization_id;
+  }
+
   console.log(
-    ">>> [DEBUG DOMAINS] addDomain: Looking up organization for client:",
+    ">>> [DEBUG DOMAINS] addDomainMaster: Target Org ID:",
+    organization_id,
+  );
+
+  // Insert domain
+  const { error: insertError } = await admin.from("domains_master").insert({
+    domain,
     client_id,
-  );
-
-  const { data: clientData, error: clientError } = await admin
-    .from("clients")
-    .select("organization_id")
-    .eq("id", client_id)
-    .single();
-
-  if (clientError || !clientData) {
-    console.error(
-      ">>> [DEBUG DOMAINS] addDomain: Error finding client org:",
-      clientError,
-    );
-    return { error: "No se pudo validar la organización del cliente." };
-  }
-
-  const targetOrgId = clientData.organization_id;
-  console.log(
-    ">>> [DEBUG DOMAINS] addDomain: Found Target Org ID:",
-    targetOrgId,
-  );
-
-  // 2. INSERT DOMAIN
-  const { error: insertError } = await admin.from("domains").insert({
-    url,
-    linked_client_id: client_id,
-    provider,
-    provider_account,
+    organization_id,
+    registrar,
+    hosting_provider,
+    account_owner,
+    renewal_price,
     expiration_date: new Date(expiration_date).toISOString(),
-    organization_id: targetOrgId,
-    renewal_price: renewal_price,
     status: "active",
   });
 
   if (insertError) {
-    console.error(">>> [DEBUG DOMAINS] addDomain: Insert Error:", insertError);
+    console.error(
+      ">>> [DEBUG DOMAINS] addDomainMaster: Insert Error:",
+      insertError,
+    );
     return { error: "Error al crear dominio: " + insertError.message };
   }
 
-  console.log(">>> [DEBUG DOMAINS] addDomain: Success!");
+  console.log(">>> [DEBUG DOMAINS] addDomainMaster: Success!");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/domains");
+  return { success: true };
+}
+
+export async function updateDomainMaster(id: string, formData: FormData) {
+  const admin = createAdminClient();
+
+  const domain = formData.get("domain") as string;
+  const registrar = formData.get("registrar") as string;
+  const hosting_provider = formData.get("hosting_provider") as string;
+  const account_owner = formData.get("account_owner") as string;
+  const renewal_price = formData.get("renewal_price")
+    ? parseFloat(formData.get("renewal_price") as string)
+    : 0;
+  const expiration_date = formData.get("expiration_date") as string;
+
+  const { error } = await admin
+    .from("domains_master")
+    .update({
+      domain,
+      registrar,
+      hosting_provider,
+      account_owner,
+      renewal_price,
+      expiration_date: new Date(expiration_date).toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error(">>> [DEBUG DOMAINS] updateDomainMaster: Error:", error);
+    return { error: "Error al actualizar dominio: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/domains");
+  return { success: true };
+}
+
+export async function deleteDomainMaster(id: string) {
+  const admin = createAdminClient();
+
+  const { error } = await admin.from("domains_master").delete().eq("id", id);
+
+  if (error) {
+    console.error(">>> [DEBUG DOMAINS] deleteDomainMaster: Error:", error);
+    return { error: "Error al eliminar dominio: " + error.message };
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/domains");
   return { success: true };

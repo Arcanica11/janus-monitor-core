@@ -106,6 +106,15 @@ export function AddTicketDialog({ clientId }: AddTicketDialogProps) {
                 <SelectItem value="feature">Nueva Funcionalidad</SelectItem>
               </SelectContent>
             </Select>
+            {type === "maintenance" && (
+              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded-md flex items-start gap-2 mt-1">
+                <span>ℹ️</span>
+                <span>
+                  El sistema calculará automáticamente si es gratuito (Cupo:
+                  2/año). A partir del 3ro, se marcará como facturable.
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

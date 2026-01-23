@@ -3,7 +3,6 @@ import { ClientInfoTab } from "@/components/clients/ClientInfoTab";
 import { CredentialsTab } from "@/components/clients/CredentialsTab";
 import { FinancialOverviewTab } from "@/components/clients/FinancialOverviewTab";
 import { TicketsTab } from "@/components/clients/TicketsTab";
-import { SocialTab } from "@/components/clients/SocialTab";
 import { ServicesTab } from "@/components/clients/ServicesTab";
 import { DomainsTable } from "@/components/dashboard/DomainsTable";
 import { Badge } from "@/components/ui/badge";
@@ -54,14 +53,7 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
     return notFound();
   }
 
-  const {
-    client,
-    credentials,
-    services,
-    domains,
-    tickets,
-    social_credentials,
-  } = data;
+  const { client, credentials, services, domains, tickets } = data;
 
   // Enrich domains with client info for the table reuse
   const enrichedDomains = domains.map((d: any) => ({
@@ -111,22 +103,23 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="info" className="space-y-4">
+      <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="info">Perfil & Datos</TabsTrigger>
           <TabsTrigger value="credentials">
             Credenciales ({credentials.length})
-          </TabsTrigger>
-          <TabsTrigger value="social">
-            Redes ({social_credentials?.length || 0})
           </TabsTrigger>
           <TabsTrigger value="services">
             Servicios ({services.length})
           </TabsTrigger>
           <TabsTrigger value="domains">Dominios ({domains.length})</TabsTrigger>
           <TabsTrigger value="tickets">Tickets ({tickets.length})</TabsTrigger>
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview">
+          <FinancialOverviewTab services={services} domains={domains} />
+        </TabsContent>
 
         <TabsContent value="info">
           <ClientInfoTab client={client} isSuperAdmin={isSuperAdmin} />
@@ -134,13 +127,6 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
 
         <TabsContent value="credentials">
           <CredentialsTab clientId={client.id} credentials={credentials} />
-        </TabsContent>
-
-        <TabsContent value="social">
-          <SocialTab
-            credentials={social_credentials || []}
-            clientId={client.id}
-          />
         </TabsContent>
 
         <TabsContent value="services">
@@ -163,10 +149,6 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
 
         <TabsContent value="tickets">
           <TicketsTab client={client} tickets={tickets} />
-        </TabsContent>
-
-        <TabsContent value="overview">
-          <FinancialOverviewTab services={services} domains={domains} />
         </TabsContent>
       </Tabs>
     </div>

@@ -45,6 +45,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // KILL SWITCH: Check if user is blocked
+  if (user?.user_metadata?.is_blocked) {
+    const url = request.nextUrl.clone();
+    // Allow access to login page to see the error, but block everything else
+    if (!request.nextUrl.pathname.startsWith("/login")) {
+      url.pathname = "/login";
+      url.searchParams.set("error", "account_blocked");
+      return NextResponse.redirect(url);
+    }
+  }
+
   // PROTECT /dashboard/admin
   if (request.nextUrl.pathname.startsWith("/dashboard/admin")) {
     if (!user) {

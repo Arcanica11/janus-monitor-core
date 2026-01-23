@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Table,
   TableBody,
@@ -7,20 +9,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Edit, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { deleteDomainMaster } from "@/app/dashboard/domains/actions";
+import { toast } from "sonner";
 
 interface Domain {
   id: string;
-  url: string;
-  provider: string;
-  provider_account?: string;
+  domain: string;
+  registrar?: string;
+  hosting_provider?: string;
+  account_owner?: string;
+  renewal_price?: number;
   expiration_date: string;
   status: string;
-  clients: {
+  client_id?: string | null;
+  clients?: {
     name: string;
     unique_client_id?: string;
+  } | null;
+  organizations?: {
+    name: string;
   } | null;
 }
 
@@ -29,7 +41,9 @@ interface DomainsTableProps {
 }
 
 export function DomainsTable({ domains }: DomainsTableProps) {
-  const getStatusBadge = (dateString: string, status: string) => {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const getExpirationBadge = (dateString: string, status: string) => {
     const expiryDate = new Date(dateString);
     const now = new Date();
     const daysLeft = differenceInDays(expiryDate, now);
@@ -76,62 +90,141 @@ export function DomainsTable({ domains }: DomainsTableProps) {
     );
   };
 
+  const handleDelete = async (id: string, domainName: string) => {
+    if (!confirm(`¿Eliminar el dominio "${domainName}"?`)) return;
+
+    setDeletingId(id);
+    const res = await deleteDomainMaster(id);
+    setDeletingId(null);
+
+    if (res?.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Dominio eliminado");
+    }
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Dominio / URL</TableHead>
-            <TableHead>Proveedor</TableHead>
-            <TableHead>Cuenta / Perfil</TableHead>
-            <TableHead>Vencimiento</TableHead>
-            <TableHead>Alertas</TableHead>
+            <TableHead className="w-[250px]">Dominio</TableHead>
+            <TableHead>Ubicación</TableHead>
+            <TableHead>Propiedad</TableHead>
+            <TableHead>Renovación</TableHead>
+            <TableHead className="text-right">Costo</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {domains.map((domain) => (
             <TableRow key={domain.id}>
+              {/* Dominio */}
               <TableCell className="font-medium">
-                {domain.clients?.name ? (
-                  <div className="flex flex-col">
-                    <span>{domain.clients.name}</span>
-                    {/* <span className="text-xs text-muted-foreground">{domain.clients.unique_client_id}</span> */}
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground italic">
-                    Sin Asignar
-                  </span>
-                )}
-              </TableCell>
-              <TableCell>
                 <a
-                  href={`https://${domain.url}`}
+                  href={`https://${domain.domain}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:underline text-indigo-500 font-medium"
+                  className="hover:underline text-indigo-600 dark:text-indigo-400 font-semibold text-base"
                 >
-                  {domain.url}
+                  {domain.domain}
                 </a>
+                {domain.registrar && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Registrador: {domain.registrar}
+                  </p>
+                )}
               </TableCell>
-              <TableCell>{domain.provider}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {domain.provider_account || "-"}
-              </TableCell>
-              <TableCell className="capitalize">
-                {format(new Date(domain.expiration_date), "dd MMM yyyy", {
-                  locale: es,
-                })}
-              </TableCell>
+
+              {/* Ubicación (Provider + Account) */}
               <TableCell>
-                {getStatusBadge(domain.expiration_date, domain.status)}
+                <div className="flex flex-col gap-1">
+                  {domain.hosting_provider && (
+                    <Badge variant="secondary" className="w-fit">
+                      {domain.hosting_provider}
+                    </Badge>
+                  )}
+                  {domain.account_owner && (
+                    <Badge variant="outline" className="w-fit text-xs">
+                      {domain.account_owner}
+                    </Badge>
+                  )}
+                  {!domain.hosting_provider && !domain.account_owner && (
+                    <span className="text-muted-foreground text-sm">-</span>
+                  )}
+                </div>
+              </TableCell>
+
+              {/* Propiedad (Ownership) */}
+              <TableCell>
+                {domain.client_id && domain.clients?.name ? (
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground">
+                      Cliente:
+                    </span>
+                    <span className="font-medium">{domain.clients.name}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground">
+                      Interno:
+                    </span>
+                    <span className="font-medium">
+                      {domain.organizations?.name || "Organización"}
+                    </span>
+                  </div>
+                )}
+              </TableCell>
+
+              {/* Renovación */}
+              <TableCell>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium">
+                    {format(new Date(domain.expiration_date), "dd MMM yyyy", {
+                      locale: es,
+                    })}
+                  </span>
+                  {getExpirationBadge(domain.expiration_date, domain.status)}
+                </div>
+              </TableCell>
+
+              {/* Costo */}
+              <TableCell className="text-right font-semibold">
+                {domain.renewal_price
+                  ? `$${domain.renewal_price.toFixed(2)}`
+                  : "-"}
+              </TableCell>
+
+              {/* Acciones */}
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    title="Editar"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    title="Eliminar"
+                    disabled={deletingId === domain.id}
+                    onClick={() => handleDelete(domain.id, domain.domain)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
           {domains.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={7}
                 className="text-center h-24 text-muted-foreground"
               >
                 No hay dominios registrados.

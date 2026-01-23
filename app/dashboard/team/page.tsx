@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldAlert, Lock, UserCheck, Shield } from "lucide-react";
 import { DeleteButton } from "./DeleteButton";
 import { EditUserDialog } from "./EditUserDialog";
+import { AddUserDialog } from "@/components/team/AddUserDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -91,12 +92,15 @@ export default async function TeamPage() {
 
       {/* USERS */}
       <Card>
-        <CardHeader>
-          <CardTitle>Usuarios Registrados ({users.length})</CardTitle>
-          <CardDescription>
-            Gestión completa de usuarios. Bloquea el acceso o elimina
-            permanentemente.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Usuarios Registrados ({users.length})</CardTitle>
+            <CardDescription>
+              Gestión completa de usuarios. Bloquea el acceso o elimina
+              permanentemente.
+            </CardDescription>
+          </div>
+          <AddUserDialog organizations={organizations} />
         </CardHeader>
         <CardContent>
           <Table>

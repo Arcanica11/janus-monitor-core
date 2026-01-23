@@ -62,7 +62,7 @@ export default async function ProjectDetailPage({
   };
 
   const updateStatusAction = updateProjectStatus.bind(null, project.id);
-  const addLogAction = addProjectLog.bind(null, project.id);
+  // const addLogAction = addProjectLog.bind(null, project.id);
 
   return (
     <div className="space-y-6">
@@ -183,7 +183,13 @@ export default async function ProjectDetailPage({
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-6">
               {/* Input Area */}
-              <form action={addLogAction} className="flex gap-2">
+              <form
+                action={async (formData: FormData) => {
+                  "use server";
+                  await addProjectLog(project.id, formData);
+                }}
+                className="flex gap-2"
+              >
                 <Input
                   name="content"
                   placeholder="Escribe una actualización..."

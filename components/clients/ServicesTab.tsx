@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AddServiceDialog } from "./AddServiceDialog";
 import { deleteService } from "@/app/dashboard/clients/[id]/actions";
-import { Calendar, Trash2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -75,7 +75,7 @@ export function ServicesTab({ clientId, services }: ServicesTabProps) {
         <div>
           <CardTitle>Servicios Recurrentes</CardTitle>
           <CardDescription>
-            Mantenimientos, licencias y costos fijos.
+            Facturación y servicios activos para este cliente.
           </CardDescription>
         </div>
         <AddServiceDialog clientId={clientId} />
@@ -87,6 +87,7 @@ export function ServicesTab({ clientId, services }: ServicesTabProps) {
               <TableHead>Concepto</TableHead>
               <TableHead>Ciclo</TableHead>
               <TableHead>Costo</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead>Próximo Cobro</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -95,7 +96,7 @@ export function ServicesTab({ clientId, services }: ServicesTabProps) {
             {services.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center h-24 text-muted-foreground"
                 >
                   No hay servicios registrados.
@@ -104,7 +105,9 @@ export function ServicesTab({ clientId, services }: ServicesTabProps) {
             ) : (
               services.map((svc) => (
                 <TableRow key={svc.id}>
-                  <TableCell className="font-medium">{svc.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {svc.service_name}
+                  </TableCell>
                   <TableCell className="capitalize">
                     {svc.billing_cycle === "one_time"
                       ? "Pago Único"
@@ -113,15 +116,32 @@ export function ServicesTab({ clientId, services }: ServicesTabProps) {
                         : "Mensual"}
                   </TableCell>
                   <TableCell className="font-mono">
-                    {formatCurrency(svc.cost)}
+                    {formatCurrency(svc.amount)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        svc.status === "active" ? "default" : "secondary"
+                      }
+                      className="capitalize"
+                    >
+                      {svc.status || "unknown"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {svc.next_billing_date &&
-                        format(new Date(svc.next_billing_date), "dd MMM yyyy", {
-                          locale: es,
-                        })}
-                      {getBillingBadge(svc.next_billing_date)}
+                      {svc.next_payment_date ? (
+                        <>
+                          {format(
+                            new Date(svc.next_payment_date),
+                            "dd MMM yyyy",
+                            { locale: es },
+                          )}
+                          {getBillingBadge(svc.next_payment_date)}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

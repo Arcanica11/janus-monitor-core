@@ -105,3 +105,42 @@ export async function createClientAction(formData: FormData) {
   revalidatePath("/dashboard", "layout");
   return { success: true };
 }
+
+// Quick Create for Combobox
+export async function quickCreateClient(name: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.organization_id) {
+    return {
+      error: "Para Quick Create debes tener una organización asignada.",
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("clients")
+    .insert({
+      name,
+      organization_id: profile.organization_id,
+      status: "active",
+    })
+    .select("id, name")
+    .single();
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard", "layout");
+  return { client: data };
+}
