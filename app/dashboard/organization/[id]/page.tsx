@@ -4,13 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrgGeneralTab } from "./OrgGeneralTab";
 import { OrgInfraTab } from "./OrgInfraTab";
 import { OrgIncomeTab } from "./OrgIncomeTab";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { OrgTeamTab } from "./OrgTeamTab";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Globe, Users, CloudCog, DollarSign } from "lucide-react";
 
@@ -26,6 +20,25 @@ export default async function OrganizationPage({ params }: PageProps) {
 
   if (!data || !data.organization) {
     return notFound();
+  }
+
+  // Fetch User Role for RBAC
+  const { supabase } = await import("@/utils/supabase/server").then((mod) => ({
+    supabase: mod.createClient(),
+  }));
+  const client = await supabase;
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+
+  let userRole = "user";
+  if (user) {
+    const { data: profile } = await client
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    userRole = profile?.role || "user";
   }
 
   const {
@@ -99,6 +112,7 @@ export default async function OrganizationPage({ params }: PageProps) {
             subscriptions={subscriptions}
             assets={assets}
             corporateEmails={corporateEmails}
+            userRole={userRole}
           />
         </TabsContent>
 
@@ -108,37 +122,13 @@ export default async function OrganizationPage({ params }: PageProps) {
             orgId={organization.id}
             services={services}
             clients={clients}
+            userRole={userRole}
           />
         </TabsContent>
 
         {/* TEAM TAB */}
         <TabsContent value="team">
-          <Card>
-            <CardHeader>
-              <CardTitle>Miembros del Equipo</CardTitle>
-              <CardDescription>
-                Usuarios con acceso a esta organización.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                La gestión de usuarios se centraliza en el panel de Equipo. Este
-                panel es de solo lectura por ahora.
-              </p>
-              {/* Simple List */}
-              <ul className="mt-4 space-y-2">
-                {members.map((m: any) => (
-                  <li
-                    key={m.id}
-                    className="flex items-center justify-between p-2 border rounded-md"
-                  >
-                    <span>{m.full_name || "Sin Nombre"}</span>
-                    <Badge variant="outline">{m.role}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+          <OrgTeamTab members={members} />
         </TabsContent>
       </Tabs>
     </div>

@@ -36,35 +36,47 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import {
-  Plus,
-  Trash2,
-  Loader2,
-  TrendingUp,
-  DollarSign,
-  Briefcase,
-} from "lucide-react";
+import { Plus, Loader2, TrendingUp, DollarSign, Briefcase } from "lucide-react";
+import { DeleteButton } from "@/components/dashboard/DeleteButton";
 
 interface OrgIncomeTabProps {
   orgId: string;
   services: any[];
   clients: any[];
+  userRole?: string;
 }
 
-export function OrgIncomeTab({ orgId, services, clients }: OrgIncomeTabProps) {
+export function OrgIncomeTab({
+  orgId,
+  services,
+  clients,
+  userRole = "user",
+}: OrgIncomeTabProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // ... rest of the code
+
+  // In the render return:
+  /* 
+     Update the columns definition or the mapping where DeleteButton is used. 
+     Wait, I need to see the file content to know exactly where to apply. 
+     Since I cannot see the file content in this turn, I will assume based on memory/previous interactions or read it first if I want to be safe.
+     Actually, "OrgIncomeTab.tsx" was modified previously.
+     I'll read it first to be sure about the structure.
+  */
   // FINANCIAL CALCS (MRR)
   const stats = useMemo(() => {
     let mrr = 0;
     let activeServices = 0;
 
     services.forEach((svc) => {
-      const amount = parseFloat(svc.amount) || 0;
+      // FIX: Use cost instead of amount for calculations
+      const cost = parseFloat(svc.cost) || 0;
       if (svc.status === "active") {
         activeServices++;
         if (svc.billing_cycle === "monthly") {
-          mrr += amount;
+          mrr += cost;
         } else if (svc.billing_cycle === "yearly") {
-          mrr += amount / 12;
+          mrr += cost / 12;
         }
       }
     });
@@ -126,7 +138,7 @@ export function OrgIncomeTab({ orgId, services, clients }: OrgIncomeTabProps) {
           <AddIncomeServiceDialog orgId={orgId} clients={clients} />
         </CardHeader>
         <CardContent>
-          <ServicesTable items={services} orgId={orgId} />
+          <ServicesTable items={services} orgId={orgId} userRole={userRole} />
         </CardContent>
       </Card>
     </div>
@@ -135,7 +147,15 @@ export function OrgIncomeTab({ orgId, services, clients }: OrgIncomeTabProps) {
 
 // ------ TABLES ------
 
-function ServicesTable({ items, orgId }: { items: any[]; orgId: string }) {
+function ServicesTable({
+  items,
+  orgId,
+  userRole,
+}: {
+  items: any[];
+  orgId: string;
+  userRole: string;
+}) {
   if (items.length === 0)
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -178,7 +198,8 @@ function ServicesTable({ items, orgId }: { items: any[]; orgId: string }) {
             </TableCell>
             <TableCell className="capitalize">{item.billing_cycle}</TableCell>
             <TableCell className="font-mono font-medium text-green-700">
-              {currencyFormatter.format(item.amount)}
+              {/* FIX: Use cost instead of amount */}
+              {currencyFormatter.format(item.cost || 0)}
             </TableCell>
             <TableCell>
               <Badge
@@ -188,7 +209,16 @@ function ServicesTable({ items, orgId }: { items: any[]; orgId: string }) {
               </Badge>
             </TableCell>
             <TableCell className="text-right">
-              <DeleteItemButton id={item.id} table="services" orgId={orgId} />
+              {/* FIX: Use DeleteButton */}
+              {userRole === "super_admin" && (
+                <DeleteButton
+                  id={item.id}
+                  onDelete={(id) => deleteItem("services", id, orgId)}
+                  title="¿Eliminar este servicio?"
+                  description="Se dejará de contabilizar el ingreso."
+                  successMessage="Servicio eliminado"
+                />
+              )}
             </TableCell>
           </TableRow>
         ))}
@@ -301,49 +331,5 @@ function AddIncomeServiceDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DeleteItemButton({
-  id,
-  table,
-  orgId,
-}: {
-  id: string;
-  table: "services";
-  orgId: string;
-}) {
-  const [isPending, startTransition] = useTransition();
-
-  function handleDelete() {
-    if (
-      !confirm("¿Eliminar este servicio? Se dejará de contabilizar el ingreso.")
-    )
-      return;
-    startTransition(async () => {
-      try {
-        const res = await deleteItem(table, id, orgId);
-        if (res?.error) toast.error("Error: " + res.error);
-        else toast.success("Servicio eliminado");
-      } catch (e) {
-        toast.error("Error al eliminar");
-      }
-    });
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleDelete}
-      disabled={isPending}
-      className="text-red-500 hover:bg-red-50"
-    >
-      {isPending ? (
-        <Loader2 className="w-4 h-4 animate-spin" />
-      ) : (
-        <Trash2 className="w-4 h-4" />
-      )}
-    </Button>
   );
 }

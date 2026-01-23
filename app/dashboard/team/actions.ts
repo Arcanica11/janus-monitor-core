@@ -217,6 +217,10 @@ export async function createUser(formData: FormData) {
         email,
         full_name: fullName,
         role,
+        organization_id:
+          formData.get("organization_id") === "null"
+            ? null
+            : formData.get("organization_id") || null,
         is_blocked: false,
       });
     }

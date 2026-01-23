@@ -44,7 +44,6 @@ import {
 import { toast } from "sonner";
 import {
   Plus,
-  Trash2,
   Loader2,
   Eye,
   EyeOff,
@@ -53,12 +52,14 @@ import {
   CreditCard,
   Wallet,
 } from "lucide-react";
+import { DeleteButton } from "@/components/dashboard/DeleteButton";
 
 interface OrgInfraTabProps {
   orgId: string;
   subscriptions: any[];
   assets: any[];
   corporateEmails: any[];
+  userRole?: string;
 }
 
 export function OrgInfraTab({
@@ -66,6 +67,7 @@ export function OrgInfraTab({
   subscriptions,
   assets,
   corporateEmails,
+  userRole = "user",
 }: OrgInfraTabProps) {
   // --- FINANCIAL CALCS ---
   const stats = useMemo(() => {
@@ -141,7 +143,11 @@ export function OrgInfraTab({
           <AddServiceDialog orgId={orgId} />
         </CardHeader>
         <CardContent>
-          <ServicesTable items={subscriptions} orgId={orgId} />
+          <ServicesTable
+            items={subscriptions}
+            orgId={orgId}
+            userRole={userRole}
+          />
         </CardContent>
       </Card>
 
@@ -157,7 +163,7 @@ export function OrgInfraTab({
           <AddAssetDialog orgId={orgId} />
         </CardHeader>
         <CardContent>
-          <AssetsTable items={assets} orgId={orgId} />
+          <AssetsTable items={assets} orgId={orgId} userRole={userRole} />
         </CardContent>
       </Card>
 
@@ -173,7 +179,11 @@ export function OrgInfraTab({
           <AddEmailDialog orgId={orgId} />
         </CardHeader>
         <CardContent>
-          <EmailsTable items={corporateEmails} orgId={orgId} />
+          <EmailsTable
+            items={corporateEmails}
+            orgId={orgId}
+            userRole={userRole}
+          />
         </CardContent>
       </Card>
     </div>
@@ -182,7 +192,15 @@ export function OrgInfraTab({
 
 // ------ TABLES ------
 
-function ServicesTable({ items, orgId }: { items: any[]; orgId: string }) {
+function ServicesTable({
+  items,
+  orgId,
+  userRole,
+}: {
+  items: any[];
+  orgId: string;
+  userRole: string;
+}) {
   if (items.length === 0)
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -270,11 +288,14 @@ function ServicesTable({ items, orgId }: { items: any[]; orgId: string }) {
               </div>
             </TableCell>
             <TableCell className="text-right">
-              <DeleteItemButton
-                id={item.id}
-                table="org_subscriptions"
-                orgId={orgId}
-              />
+              {userRole === "super_admin" && (
+                <DeleteButton
+                  id={item.id}
+                  onDelete={(id) => deleteItem("org_subscriptions", id, orgId)}
+                  title="¿Eliminar suscripción?"
+                  successMessage="Suscripción eliminada"
+                />
+              )}
             </TableCell>
           </TableRow>
         ))}
@@ -283,7 +304,15 @@ function ServicesTable({ items, orgId }: { items: any[]; orgId: string }) {
   );
 }
 
-function AssetsTable({ items, orgId }: { items: any[]; orgId: string }) {
+function AssetsTable({
+  items,
+  orgId,
+  userRole,
+}: {
+  items: any[];
+  orgId: string;
+  userRole: string;
+}) {
   if (items.length === 0)
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -372,11 +401,14 @@ function AssetsTable({ items, orgId }: { items: any[]; orgId: string }) {
 
               {/* Actions */}
               <TableCell className="text-right">
-                <DeleteItemButton
-                  id={asset.id}
-                  table="domains_master"
-                  orgId={orgId}
-                />
+                {userRole === "super_admin" && (
+                  <DeleteButton
+                    id={asset.id}
+                    onDelete={(id) => deleteItem("domains_master", id, orgId)}
+                    title="¿Eliminar dominio?"
+                    successMessage="Dominio eliminado"
+                  />
+                )}
               </TableCell>
             </TableRow>
           );
@@ -386,7 +418,15 @@ function AssetsTable({ items, orgId }: { items: any[]; orgId: string }) {
   );
 }
 
-function EmailsTable({ items, orgId }: { items: any[]; orgId: string }) {
+function EmailsTable({
+  items,
+  orgId,
+  userRole,
+}: {
+  items: any[];
+  orgId: string;
+  userRole: string;
+}) {
   if (items.length === 0)
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -420,11 +460,16 @@ function EmailsTable({ items, orgId }: { items: any[]; orgId: string }) {
               />
             </TableCell>
             <TableCell className="text-right">
-              <DeleteItemButton
-                id={item.id}
-                table="org_corporate_emails"
-                orgId={orgId}
-              />
+              {userRole === "super_admin" && (
+                <DeleteButton
+                  id={item.id}
+                  onDelete={(id) =>
+                    deleteItem("org_corporate_emails", id, orgId)
+                  }
+                  title="¿Eliminar correo?"
+                  successMessage="Correo eliminado"
+                />
+              )}
             </TableCell>
           </TableRow>
         ))}
@@ -517,52 +562,6 @@ function CopyButton({ text }: { text?: string }) {
       onClick={handleCopy}
     >
       <Copy className="w-3 h-3" />
-    </Button>
-  );
-}
-
-function DeleteItemButton({
-  id,
-  table,
-  orgId,
-}: {
-  id: string;
-  table:
-    | "org_subscriptions"
-    | "domains_master"
-    | "org_corporate_emails"
-    | "services";
-  orgId: string;
-}) {
-  const [isPending, startTransition] = useTransition();
-
-  function handleDelete() {
-    if (!confirm("¿Confirma eliminar este registro? La acción será auditada."))
-      return;
-    startTransition(async () => {
-      try {
-        const res = await deleteItem(table, id, orgId);
-        if (res?.error) toast.error("Error: " + res.error);
-        else toast.success("Registro eliminado");
-      } catch (e) {
-        toast.error("Error al eliminar");
-      }
-    });
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleDelete}
-      disabled={isPending}
-      className="text-red-500 hover:bg-red-50"
-    >
-      {isPending ? (
-        <Loader2 className="w-4 h-4 animate-spin" />
-      ) : (
-        <Trash2 className="w-4 h-4" />
-      )}
     </Button>
   );
 }

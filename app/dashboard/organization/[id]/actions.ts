@@ -80,6 +80,7 @@ export async function getOrganizationFullDetails(orgId: string) {
     .order("created_at", { ascending: false });
 
   // 5. Get Members
+  // 5. Get Members (Explicit Fetch as requested)
   const { data: members } = await supabase
     .from("profiles")
     .select("*")
@@ -372,6 +373,7 @@ export async function addCorporateEmail(orgId: string, formData: FormData) {
 }
 
 // ADD ASSET (MIGRATED: Now saves to domains_master)
+// ADD ASSET (MIGRATED: Now saves to domains_master)
 export async function addAsset(orgId: string, formData: FormData) {
   try {
     const supabase = await createClient();
@@ -385,12 +387,20 @@ export async function addAsset(orgId: string, formData: FormData) {
     const cost = costRaw ? parseFloat(costRaw) : 0;
     const expirationDate = formData.get("expiration_date") as string;
 
+    // NEW: Client ID support
+    const clientIdRaw = formData.get("client_id") as string;
+    const clientId =
+      clientIdRaw && clientIdRaw !== "null" && clientIdRaw !== ""
+        ? clientIdRaw
+        : null;
+
     console.log("--> addAsset (domains_master):", {
       orgId,
       domainName,
       provider,
       accountHolder,
       cost,
+      clientId,
     });
 
     if (!domainName) {
@@ -402,7 +412,7 @@ export async function addAsset(orgId: string, formData: FormData) {
       .from("domains_master")
       .insert({
         organization_id: orgId,
-        client_id: null, // Internal asset (not client-owned)
+        client_id: clientId, // Support for Client Domains
         domain_name: domainName,
         registrar: registrar || null,
         hosting_provider: provider || null,
@@ -424,9 +434,13 @@ export async function addAsset(orgId: string, formData: FormData) {
     await logAuditEvent("CREATE_ASSET", `domains_master:${data.id}`, {
       domain: domainName,
       org_id: orgId,
+      client_id: clientId,
     });
 
     revalidatePath(`/dashboard/organization/${orgId}`);
+    if (clientId) {
+      revalidatePath(`/dashboard/clients/${clientId}`);
+    }
     revalidatePath(`/dashboard/domains`); // Also refresh global domains view
     return { success: true };
   } catch (error: any) {
@@ -439,7 +453,7 @@ export async function addAsset(orgId: string, formData: FormData) {
 export async function deleteItem(
   table:
     | "org_subscriptions"
-    | "org_assets"
+    | "domains_master"
     | "org_corporate_emails"
     | "services",
   id: string,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom"; // IMPORTANTE
 import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,19 +20,37 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
 import Link from "next/link";
 
+// COMPONENTE SubmitButton CON useFormStatus
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      className="w-full bg-primary hover:bg-primary/90"
+      disabled={pending}
+    >
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {pending ? "Ingresando..." : "Ingresar"}
+    </Button>
+  );
+}
+
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  // Eliminamos isLoading manual, usamos useFormStatus en el botón
   const [error, setError] = useState<string | null>(null);
 
   async function handleLogin(formData: FormData) {
-    setIsLoading(true);
     setError(null);
-    const result = await login(formData);
-    setIsLoading(false);
-
-    if (result?.error) {
-      setError(result.error);
-      toast.error(result.error);
+    try {
+      const result = await login(formData); // Server Action
+      if (result?.error) {
+        setError(result.error);
+        toast.error(result.error);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Ocurrió un error inesperado");
     }
   }
 
@@ -70,6 +89,7 @@ export default function LoginPage() {
               Ingresa tus credenciales para acceder a Janus Monitor.
             </CardDescription>
           </CardHeader>
+          {/* Action apunta al wrapper handleLogin */}
           <form action={handleLogin} className="flex flex-col gap-4">
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -88,14 +108,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button
-                type="submit"
-                className="w-full bg-primary hover:bg-primary/90"
-                disabled={isLoading}
-              >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Ingresar
-              </Button>
+              <SubmitButton />
               <Link
                 href="/forgot-password"
                 className="text-sm text-muted-foreground hover:underline text-center"
