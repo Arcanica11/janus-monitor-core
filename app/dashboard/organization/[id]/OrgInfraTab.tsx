@@ -4,7 +4,6 @@ import { useState, useTransition, useMemo } from "react";
 import {
   addSubscription,
   addAsset,
-  addCorporateEmail,
   deleteItem,
   revealCredential,
 } from "./actions";
@@ -53,6 +52,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { DeleteButton } from "@/components/dashboard/DeleteButton";
+import { EmailsTable } from "@/components/dashboard/emails/EmailsTable";
+import { AddEmailDialog } from "@/components/dashboard/emails/AddEmailDialog";
 
 interface OrgInfraTabProps {
   orgId: string;
@@ -167,23 +168,19 @@ export function OrgInfraTab({
         </CardContent>
       </Card>
 
-      {/* SECTION C: CORPORATE EMAILS */}
+      {/* SECTION C: CORPORATE EMAILS (MIGRATED) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Correos Corporativos</CardTitle>
             <CardDescription>
-              Cuentas de email del equipo interno.
+              Cuentas de email del equipo interno. ({corporateEmails.length})
             </CardDescription>
           </div>
-          <AddEmailDialog orgId={orgId} />
+          <AddEmailDialog organizationId={orgId} clientId={null} />
         </CardHeader>
         <CardContent>
-          <EmailsTable
-            items={corporateEmails}
-            orgId={orgId}
-            userRole={userRole}
-          />
+          <EmailsTable emails={corporateEmails} userRole={userRole} />
         </CardContent>
       </Card>
     </div>
@@ -418,65 +415,7 @@ function AssetsTable({
   );
 }
 
-function EmailsTable({
-  items,
-  orgId,
-  userRole,
-}: {
-  items: any[];
-  orgId: string;
-  userRole: string;
-}) {
-  if (items.length === 0)
-    return (
-      <div className="text-center text-muted-foreground py-8">
-        No hay correos corporativos.
-      </div>
-    );
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Email Address</TableHead>
-          <TableHead>Asignado A</TableHead>
-          <TableHead>Auditoría de Clave</TableHead>
-          <TableHead className="text-right">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell className="font-medium flex items-center gap-2">
-              {item.email_address}
-              <CopyButton text={item.email_address} />
-            </TableCell>
-            <TableCell>{item.assigned_to || "-"}</TableCell>
-            <TableCell>
-              <PasswordReveal
-                id={item.id}
-                table="org_corporate_emails"
-                orgId={orgId}
-                hasPassword={!!item.password}
-              />
-            </TableCell>
-            <TableCell className="text-right">
-              {userRole === "super_admin" && (
-                <DeleteButton
-                  id={item.id}
-                  onDelete={(id) =>
-                    deleteItem("org_corporate_emails", id, orgId)
-                  }
-                  title="¿Eliminar correo?"
-                  successMessage="Correo eliminado"
-                />
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
+// EmailsTable definition removed (imported from components)
 
 // ------ HELPER COMPONENTS ------
 
@@ -782,67 +721,4 @@ function AddAssetDialog({ orgId }: { orgId: string }) {
   );
 }
 
-function AddEmailDialog({ orgId }: { orgId: string }) {
-  const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  function onSubmit(formData: FormData) {
-    startTransition(async () => {
-      try {
-        const res = await addCorporateEmail(orgId, formData);
-        if (res?.error) toast.error(res.error);
-        else {
-          toast.success("Email creado");
-          setOpen(false);
-        }
-      } catch (e) {
-        toast.error("Error al guardar");
-      }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Agregar Email
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nuevo Correo Corporativo</DialogTitle>
-        </DialogHeader>
-        <form action={onSubmit} className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label>Dirección de Email</Label>
-            <Input
-              name="email_address"
-              type="email"
-              placeholder="nombre@empresa.com"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Asignado A</Label>
-            <Input name="assigned_to" placeholder="Nombre del empleado" />
-          </div>
-          <div className="space-y-2">
-            <Label>Contraseña Inicial</Label>
-            <Input
-              name="password"
-              type="text"
-              placeholder="Generar una segura..."
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
-            {isPending ? "Creando..." : "Crear Email"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// AddEmailDialog removed (imported)

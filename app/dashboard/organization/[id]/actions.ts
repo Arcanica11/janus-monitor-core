@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { logAuditEvent } from "@/lib/audit";
+import { encrypt, decrypt } from "@/utils/encryption";
 
 // SECURITY: Get Organization's Internal Assets (domains_master)
 // CRITICAL: Double filter to prevent cross-org data leakage
@@ -72,33 +73,26 @@ export async function getOrganizationFullDetails(orgId: string) {
     .is("client_id", null)
     .order("expiration_date", { ascending: true });
 
-  // 4. Get Corporate Emails
+  // 4. Get Corporate Emails (MIGRATED: Now using org_corporate_emails)
+  // Fetch only internal emails (client_id is null)
   const { data: corporateEmails } = await supabase
     .from("org_corporate_emails")
     .select("*")
     .eq("organization_id", orgId)
+    .is("client_id", null)
     .order("created_at", { ascending: false });
 
-  // 5. Get Members
-  // 5. Get Members (Explicit Fetch as requested)
   const { data: members } = await supabase
     .from("profiles")
     .select("*")
     .eq("organization_id", orgId);
 
-  // 6. Get Income Services
   const { data: services } = await supabase
     .from("services")
-    .select(
-      `
-      *,
-      clients ( name )
-    `,
-    )
+    .select(`*, clients ( name )`)
     .eq("organization_id", orgId)
     .order("created_at", { ascending: false });
 
-  // 7. Get Clients (For dropdowns)
   const { data: clients } = await supabase
     .from("clients")
     .select("id, name")
@@ -115,9 +109,10 @@ export async function getOrganizationFullDetails(orgId: string) {
     login_password: sub.login_password ? "***HIDDEN***" : "", // Indicator that it exists
   }));
 
+  // FOR CORPORATE EMAILS: Decrypt on the fly for authorized users (V1 strategy)
   const safeEmails = corporateEmails?.map((email) => ({
     ...email,
-    password: email.password ? "***HIDDEN***" : "",
+    password: decrypt(email.encrypted_password),
   }));
 
   console.log("--> Data fetched successfully for Org:", orgId);
@@ -126,7 +121,7 @@ export async function getOrganizationFullDetails(orgId: string) {
     organization,
     subscriptions: safeSubscriptions || [],
     assets: assets || [],
-    internalAssets: internalAssets || [], // NEW: Internal domains from domains_master
+    internalAssets: internalAssets || [],
     corporateEmails: safeEmails || [],
     members: members || [],
     services: services || [],
@@ -157,10 +152,21 @@ export async function revealCredential(
     }
 
     // Determine what to return based on table
-    const password =
+    let password =
       table === "org_subscriptions" ? data.login_password : data.password;
     const identifier =
       table === "org_subscriptions" ? data.service_name : data.email_address;
+
+    // DECRYPT IF NEEDED
+    if (password && password !== "***HIDDEN***") {
+      try {
+        // Attempt to decrypt if it looks like an encrypted string (or just try)
+        // Our decrypt function handles plain text fallback if format doesn't match
+        password = decrypt(password);
+      } catch (e) {
+        console.warn("Decryption failed in reveal, returning raw:", e);
+      }
+    }
 
     // AUDIT LOG
     await logAuditEvent("VIEW_PASSWORD", `${table}:${id}`, {
@@ -295,8 +301,11 @@ export async function addSubscription(orgId: string, formData: FormData) {
     const billing_cycle = formData.get("billing_cycle") as string;
     const next_billing_date = formData.get("next_billing_date") as string;
     const login_email = formData.get("login_email") as string;
-    const login_password = formData.get("login_password") as string;
+    const rawPassword = formData.get("login_password") as string; // Get raw
     const tier = formData.get("tier") as string;
+
+    // ENCRYPT PASSWORD
+    const login_password = rawPassword ? encrypt(rawPassword) : null;
 
     const { data, error } = await supabase
       .from("org_subscriptions")
@@ -341,8 +350,17 @@ export async function addCorporateEmail(orgId: string, formData: FormData) {
     const { supabase } = await getAuthenticatedClient();
 
     const email_address = formData.get("email_address") as string;
-    const password = formData.get("password") as string;
+    const rawPassword = formData.get("password") as string;
     const assigned_to = formData.get("assigned_to") as string;
+
+    // NEW FIELDS
+    const provider = formData.get("provider") as string;
+    const linked_gmail = formData.get("linked_gmail") as string;
+    const costRaw = formData.get("cost")?.toString();
+    const cost = costRaw ? parseFloat(costRaw) : 0;
+
+    // ENCRYPT PASSWORD
+    const password = rawPassword ? encrypt(rawPassword) : null;
 
     const { data, error } = await supabase
       .from("org_corporate_emails")
@@ -351,6 +369,9 @@ export async function addCorporateEmail(orgId: string, formData: FormData) {
         email_address,
         password,
         assigned_to,
+        provider: provider || null,
+        linked_gmail: linked_gmail || null,
+        cost: isNaN(cost) ? 0 : cost,
       })
       .select()
       .single();

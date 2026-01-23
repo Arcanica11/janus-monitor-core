@@ -22,6 +22,8 @@ import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { addAsset } from "@/app/dashboard/organization/[id]/actions";
 
+import { useRouter } from "next/navigation";
+
 export function AddClientDomainDialog({
   clientId,
   orgId,
@@ -31,6 +33,7 @@ export function AddClientDomainDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function onSubmit(formData: FormData) {
     formData.append("client_id", clientId); // CRITICAL: Link to client
@@ -42,6 +45,7 @@ export function AddClientDomainDialog({
         else {
           toast.success("Dominio agregado al cliente");
           setOpen(false);
+          router.refresh();
         }
       } catch (e) {
         toast.error("Error al guardar");

@@ -1,57 +1,57 @@
 # 🏛️ JANUS MONITOR CORE - PROJECT MASTER PLAN
 
-**Estado:** Construcción de Módulos Core (Clientes)
-**Versión:** 2.6 (Clientes con Trazabilidad)
-**Líder Técnico:** Ivan Parra
+**Estado:** Finalizando Módulo Clientes (Detalle)
+**Versión:** 2.7 (Planificación de Soporte y Comunicaciones)
 
 ---
 
-## 🎯 Objetivo Inmediato
+## ✅ HITOS COMPLETADOS
 
-Construir la **Vista de Listado de Clientes** (`/dashboard/clients`), asegurando que la información sensible (quién creó al cliente) sea visible solo para roles autorizados y aplicando los permisos de edición/borrado.
-
----
-
-## ✅ HITOS COMPLETADOS (Día 2)
-
-### 1. Estabilización & Hard Reset
-
-- [x] Limpieza total de Base de Datos (Script ejecutado).
-- [x] Fix: Usuarios creados ahora heredan correctamente `organization_id`.
-- [x] Fix: Login limpio (sin alertas falsas) y con Spinner de carga.
-- [x] Fix: Navegación Segura (Admins redirigidos a su Org, Super Admin ve todo).
-
-### 2. Módulo de Clientes (Fase 1: Creación)
-
-- [x] **Base de Datos:** Schema actualizado con campos de contacto (`phone`, `address`) y auditoría (`created_by`).
-- [x] **Backend:** Server Action `createClient` guarda huella de creador y genera Audit Log.
-- [x] **Frontend:** Diálogo de creación optimizado con "Hint" de UX para datos opcionales.
-- [x] **Seguridad:** RLS configurado para inserción multi-rol.
+- [x] **Core:** Auth, Roles (Super Admin/Admin), Navegación Segura.
+- [x] **Organizaciones:** Gestión de Gastos, Ingresos, Activos (Dominios), Equipo.
+- [x] **Clientes (Fase 1):** Listado, Creación, Detalle Básico.
+- [x] **Dominios Unificados:** Tabla `domains_master` integrada en Org y Clientes.
 
 ---
 
-## 📅 HOJA DE RUTA SIGUIENTE (Fase 2: Gestión de Clientes)
+## 📅 HOJA DE RUTA ACTUALIZADA
 
-### 1. 📋 Visualización (Listado)
+### FASE 3: COMUNICACIONES Y CORREOS (Prioridad Inmediata)
 
-- [ ] **Tabla de Clientes:** Implementar `ClientsTable.tsx`.
-  - Columnas: Empresa, Contacto (Nombre/Email), Servicios Activos (Contador), Estado.
-  - **Columna Especial "Creado Por":** Visible SOLO para Super Admin (muestra avatar/email del creador).
-- [ ] **Filtros:** Búsqueda por nombre de empresa.
+_Objetivo: Centralizar la gestión de correos corporativos de clientes y organizaciones._
 
-### 2. 🛡️ Acciones & Permisos (RBAC)
+- [ ] **Base de Datos:** Crear tabla unificada `corporate_emails` (similar a `domains_master`).
+  - Campos: `email`, `password` (encriptada), `provider` (Zoho, InMotion), `linked_gmail` (Redirección), `cost`, `client_id` (nullable).
+- [ ] **Vista Global:** `/dashboard/emails` (Super Admin ve Tabs Arknica/Rueda; Admin ve su lista).
+- [ ] **Integración Cliente:** Pestaña "Correos" dentro del Detalle de Cliente.
+- [ ] **Refactorización Org:** Actualizar la pestaña actual de "Correos" en Organización para usar esta nueva tabla maestra.
 
-- [ ] **Editar:** Permitido para Admin y Super Admin.
-- [ ] **Eliminar:** EXCLUSIVO para Super Admin (Botón oculto para los demás).
-- [ ] **Detalle:** Al hacer clic en un cliente, ir a `/dashboard/clients/[id]` (Vista detallada futura).
+### FASE 4: INFRAESTRUCTURA Y MIGRACIÓN
 
-### 3. 🔗 Integración
+- [ ] **Stack Tecnológico:** Agregar campo `tech_stack` al Cliente (WordPress/InMotion vs Code/Vercel) para planear migraciones.
+- [ ] **Visualización:** Indicadores visuales en el perfil del cliente sobre su estado tecnológico.
 
-- [ ] Conectar Clientes con Dominios (Asignar dominios de `domains_master` a un cliente específico).
+### FASE 5: MÓDULO DE TICKETS (SOPORTE INTELIGENTE)
+
+_Lógica de Negocio Compleja:_
+
+- [ ] **Base de Datos:** Tabla `tickets` y `social_credentials`.
+- [ ] **Regla de Oro:** "2 Tickets Gratis al Año" (Vinculado a fecha renovación dominio).
+- [ ] **Tipos de Ticket:**
+  - **Web:** Requiere dominio activo. Mantenimiento, Cambios.
+  - **Social Media:** Independiente del dominio. Post, Video, Banner.
+- [ ] **Flujo:** Pendiente -> En Proceso -> Aprobado -> Finalizado (Req. Link evidencia).
+- [ ] **Vista Global:** Bandeja de entrada de soporte unificada.
+
+### FASE 6: GESTIÓN DE REDES SOCIALES (Rol Social Agent)
+
+- [ ] **Credenciales:** Guardar accesos (User, Pass, Link Perfil) por cliente.
+- [ ] **Vinculación:** Conectar con módulo de Tickets para asignación de tareas de diseño/posteo.
 
 ---
 
-## 📝 Notas de Calidad
+## 📝 REGLAS DE SEGURIDAD (Recordatorio Constante)
 
-- **UX:** Mantener el estándar de Shadcn en la tabla (Sortable headers, Pagination).
-- **Seguridad:** Verificar siempre `organization_id` en las consultas de listado (`select * from clients where organization_id = ...`).
+1.  **DELETE:** Solo Super Admin puede eliminar (Dominios, Correos, Clientes, Tickets).
+2.  **VISIBILIDAD:** Admins solo ven datos de su Organización.
+3.  **DUPLICIDAD:** Nombres de clientes únicos por organización.

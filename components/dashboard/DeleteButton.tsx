@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useRouter } from "next/navigation";
+
 interface DeleteButtonProps {
   id: string;
   onDelete: (id: string, ...args: any[]) => Promise<any>;
@@ -35,6 +37,7 @@ export function DeleteButton({
 }: DeleteButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   async function handleConfirm() {
     setIsLoading(true);
@@ -45,6 +48,7 @@ export function DeleteButton({
       } else {
         toast.success(successMessage);
         setOpen(false);
+        router.refresh();
       }
     } catch (err) {
       toast.error("Ocurrió un error inesperado.");
