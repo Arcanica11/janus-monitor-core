@@ -9,6 +9,7 @@ interface Domain {
   id: string;
   url: string;
   provider: string;
+  provider_account?: string;
   expiration_date: string;
   status: string;
   clients: {

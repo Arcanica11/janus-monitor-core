@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addDomain } from "@/app/dashboard/actions";
+import { addDomain } from "@/app/dashboard/domains/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,10 +42,18 @@ export function AddDomainDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [clientId, setClientId] = useState(preselectedClientId || "");
 
+  console.log(
+    ">>> [DEBUG DOMAINS] AddDomainDialog: Rendered with clients:",
+    clients.length,
+  );
+
   async function handleSubmit(formData: FormData) {
     setIsLoading(true);
 
     if (!clientId) {
+      console.warn(
+        ">>> [DEBUG DOMAINS] AddDomainDialog: Validation failed - No Client ID",
+      );
       toast.error("Debes seleccionar un cliente");
       setIsLoading(false);
       return;
@@ -53,17 +61,37 @@ export function AddDomainDialog({
 
     formData.append("client_id", clientId);
 
-    const res = await addDomain(formData);
-    setIsLoading(false);
+    const domain = formData.get("url");
+    const price = formData.get("renewal_price");
 
-    if (res?.error) {
-      toast.error(res.error);
-    } else {
-      toast.success("Dominio agregado correctamente");
-      setOpen(false);
-      if (!preselectedClientId) {
-        setClientId("");
+    console.log(">>> [DEBUG DOMAINS] AddDomainDialog: Submitting...", {
+      domain,
+      price,
+      clientId,
+      fullFormData: Object.fromEntries(formData),
+    });
+
+    try {
+      const res = await addDomain(formData);
+      console.log(">>> [DEBUG DOMAINS] AddDomainDialog: Server response:", res);
+
+      setIsLoading(false);
+
+      if (res?.error) {
+        console.error(">>> [DEBUG DOMAINS] AddDomainDialog: Error:", res.error);
+        toast.error(res.error);
+      } else {
+        console.log(">>> [DEBUG DOMAINS] AddDomainDialog: Success");
+        toast.success("Dominio agregado correctamente");
+        setOpen(false);
+        if (!preselectedClientId) {
+          setClientId("");
+        }
       }
+    } catch (e) {
+      console.error(">>> [DEBUG DOMAINS] AddDomainDialog: Exception:", e);
+      setIsLoading(false);
+      toast.error("Error desconocido");
     }
   }
 
@@ -147,6 +175,18 @@ export function AddDomainDialog({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="provider_account" className="text-right">
+                Cuenta / Perfil
+              </Label>
+              <Input
+                id="provider_account"
+                name="provider_account"
+                placeholder="Ej: usuario@vercel.com / Equipo A"
+                className="col-span-3"
+              />
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">

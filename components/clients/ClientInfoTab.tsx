@@ -18,10 +18,11 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 interface ClientInfoTabProps {
-  client: any; // Type this properly if possible, or leave as any for now
+  client: any;
+  isSuperAdmin: boolean;
 }
 
-export function ClientInfoTab({ client }: ClientInfoTabProps) {
+export function ClientInfoTab({ client, isSuperAdmin }: ClientInfoTabProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {
@@ -46,6 +47,24 @@ export function ClientInfoTab({ client }: ClientInfoTabProps) {
       </CardHeader>
       <form action={handleSubmit}>
         <CardContent className="space-y-4">
+          {/* SUPER ADMIN ONLY: Name Editing */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="name"
+              className={!isSuperAdmin ? "text-muted-foreground" : ""}
+            >
+              Nombre de Empresa {isSuperAdmin ? "(Super Admin)" : ""}
+            </Label>
+            <Input
+              id="name"
+              name="name"
+              defaultValue={client.name || ""}
+              placeholder="Nombre oficial..."
+              disabled={!isSuperAdmin}
+              className={!isSuperAdmin ? "bg-muted text-muted-foreground" : ""}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="industry">Industria / Sector</Label>

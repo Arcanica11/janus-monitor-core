@@ -1,7 +1,25 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin"; // IMPORTANTE: Admin Client
 import { revalidatePath } from "next/cache";
+import { encrypt, decrypt } from "@/utils/encryption";
+
+// Helper para obtener la organización del cliente de forma segura
+async function getClientOrganizationId(clientId: string) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("clients")
+    .select("organization_id")
+    .eq("id", clientId)
+    .single();
+
+  if (error || !data) {
+    console.error("Error fetching client organization:", error);
+    return null;
+  }
+  return data.organization_id;
+}
 
 // 1. OBTENER DETALLES COMPLETOS (Full Fetch)
 export async function getClientFullDetails(clientId: string) {
@@ -51,7 +69,11 @@ export async function getClientFullDetails(clientId: string) {
     services: servs.data || [],
     domains: doms.data || [],
     tickets: ticks.data || [],
-    social_credentials: social.data || [],
+    social_credentials:
+      social.data?.map((s) => ({
+        ...s,
+        password: s.password ? "********" : null,
+      })) || [],
   };
 }
 
@@ -60,11 +82,39 @@ export async function updateClientProfile(
   clientId: string,
   formData: FormData,
 ) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Update puede usar cliente normal si hay políticas, o admin si falla
   const address = formData.get("address") as string;
   const phone = formData.get("phone") as string;
   const industry = formData.get("industry") as string;
   const notes = formData.get("notes") as string;
+  const name = formData.get("name") as string; // New field
+
+  // Check role for sensitive updates
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Assume basic user is 'admin' or 'user', only 'super_admin' can change name.
+  // We can do a quick check or just try update and let RLS fail/succeed if we set strict col policies,
+  // but standard RLS is usually row-based.
+  // Column-level RLS is not standard in Supabase UI but doable in SQL.
+  // Instead, we check here:
+
+  let updates: any = { address, phone, industry, notes };
+
+  if (name) {
+    // Check if user is super admin
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user?.id)
+      .single();
+    if (profile?.role === "super_admin") {
+      updates.name = name;
+    } else {
+      // Ignore name update silently or throw?
+      // Since UI is disabled, if they bypass, we just ignore.
+    }
+  }
 
   const { error } = await supabase
     .from("clients")
@@ -76,20 +126,18 @@ export async function updateClientProfile(
   return { success: true };
 }
 
-// 3. AGREGAR CREDENCIAL
+// 3. AGREGAR CREDENCIAL (REFACTORIZADO)
 export async function addCredential(clientId: string, formData: FormData) {
-  const supabase = await createClient();
+  // 1. Obtener Org ID del Cliente (Admin)
+  const orgId = await getClientOrganizationId(clientId);
+  if (!orgId)
+    return { error: "No se pudo identificar la organización del cliente." };
 
-  // Get Org ID
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .single();
-  if (!profile) return { error: "No profile" };
-
-  const { error } = await supabase.from("credentials").insert({
+  // 2. Insertar con Admin Client
+  const admin = createAdminClient();
+  const { error } = await admin.from("credentials").insert({
     client_id: clientId,
-    organization_id: profile.organization_id,
+    organization_id: orgId,
     type: formData.get("type") as string,
     service_name: formData.get("service_name") as string,
     username: formData.get("username") as string,
@@ -111,17 +159,16 @@ export async function deleteCredential(credentialId: string, clientId: string) {
   return { success: true };
 }
 
-// 5. AGREGAR SERVICIO
+// 5. AGREGAR SERVICIO (REFACTORIZADO)
 export async function addService(clientId: string, formData: FormData) {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .single();
+  const orgId = await getClientOrganizationId(clientId);
+  if (!orgId)
+    return { error: "No se pudo identificar la organización del cliente." };
 
-  const { error } = await supabase.from("services").insert({
+  const admin = createAdminClient();
+  const { error } = await admin.from("services").insert({
     client_id: clientId,
-    organization_id: profile?.organization_id,
+    organization_id: orgId,
     name: formData.get("name") as string,
     cost: parseFloat(formData.get("cost") as string),
     billing_cycle: formData.get("billing_cycle") as string,
@@ -141,17 +188,16 @@ export async function deleteService(serviceId: string, clientId: string) {
   return { success: true };
 }
 
-// 7. CREAR TICKET
+// 7. CREAR TICKET (REFACTORIZADO)
 export async function createTicket(clientId: string, formData: FormData) {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .single();
+  const orgId = await getClientOrganizationId(clientId);
+  if (!orgId)
+    return { error: "No se pudo identificar la organización del cliente." };
 
-  const { error } = await supabase.from("tickets").insert({
+  const admin = createAdminClient();
+  const { error } = await admin.from("tickets").insert({
     client_id: clientId,
-    organization_id: profile?.organization_id,
+    organization_id: orgId,
     title: formData.get("title") as string,
     type: formData.get("type") as string,
     description: formData.get("description") as string,
@@ -165,23 +211,22 @@ export async function createTicket(clientId: string, formData: FormData) {
   return { success: true };
 }
 
-// 8. CREAR RED SOCIAL (SOCIAL VAULT)
+// 8. CREAR RED SOCIAL (REFACTORIZADO)
 export async function createSocialCredential(
   clientId: string,
   formData: FormData,
 ) {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .single();
+  const orgId = await getClientOrganizationId(clientId);
+  if (!orgId)
+    return { error: "No se pudo identificar la organización del cliente." };
 
-  const { error } = await supabase.from("social_vault").insert({
+  const admin = createAdminClient();
+  const { error } = await admin.from("social_vault").insert({
     client_id: clientId,
-    organization_id: profile?.organization_id,
+    organization_id: orgId,
     platform: formData.get("platform") as string,
     username: formData.get("username") as string,
-    password: formData.get("password") as string,
+    password: encrypt(formData.get("password") as string),
     recovery_email: formData.get("recovery_email") as string,
     url: formData.get("url") as string,
     notes: formData.get("notes") as string,
@@ -192,8 +237,12 @@ export async function createSocialCredential(
   return { success: true };
 }
 
-// 9. ACTUALIZAR ESTADO DE TICKET (LA FUNCIÓN QUE FALTABA)
-export async function updateTicketStatus(ticketId: string, status: string, id: string) {
+// 9. ACTUALIZAR ESTADO DE TICKET
+export async function updateTicketStatus(
+  ticketId: string,
+  status: string,
+  id: string,
+) {
   const supabase = await createClient();
 
   // Actualizamos
@@ -218,4 +267,23 @@ export async function updateTicketStatus(ticketId: string, status: string, id: s
   }
 
   return { success: true };
+}
+
+// 10. REVELAR CONTRASEÑA (SOCIAL)
+export async function revealSocialPassword(credentialId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("social_vault")
+    .select("password")
+    .eq("id", credentialId)
+    .single();
+
+  if (error || !data) {
+    return {
+      error: "No se pudo recuperar la credencial o no tienes permisos.",
+    };
+  }
+
+  return { password: decrypt(data.password) };
 }

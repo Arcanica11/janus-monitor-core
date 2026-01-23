@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.social_vault (
     client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
     platform text NOT NULL, -- 'instagram', 'facebook', 'linkedin', 'tiktok', 'twitter', 'gmail', 'other'
     username text NOT NULL,
-    password text, -- Encrypted content or raw depending on requirements (using text for now)
+    password text, -- Stores encrypted (iv:content) via Node.js crypto
     recovery_email text,
     url text, -- Login URL
     notes text,

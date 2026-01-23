@@ -29,9 +29,26 @@ interface ClientPageProps {
   }>;
 }
 
+import { createClient } from "@/utils/supabase/server";
+
 export default async function ClientDetailPage({ params }: ClientPageProps) {
   const { id } = await params;
   const data = await getClientFullDetails(id);
+
+  // Check Super Admin Role
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let isSuperAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    isSuperAdmin = profile?.role === "super_admin";
+  }
 
   if (!data) {
     return notFound();
@@ -112,7 +129,7 @@ export default async function ClientDetailPage({ params }: ClientPageProps) {
         </TabsList>
 
         <TabsContent value="info">
-          <ClientInfoTab client={client} />
+          <ClientInfoTab client={client} isSuperAdmin={isSuperAdmin} />
         </TabsContent>
 
         <TabsContent value="credentials">

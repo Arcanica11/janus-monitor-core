@@ -15,6 +15,7 @@ interface Domain {
   id: string;
   url: string;
   provider: string;
+  provider_account?: string;
   expiration_date: string;
   status: string;
   clients: {
@@ -83,6 +84,7 @@ export function DomainsTable({ domains }: DomainsTableProps) {
             <TableHead>Cliente</TableHead>
             <TableHead>Dominio / URL</TableHead>
             <TableHead>Proveedor</TableHead>
+            <TableHead>Cuenta / Perfil</TableHead>
             <TableHead>Vencimiento</TableHead>
             <TableHead>Alertas</TableHead>
           </TableRow>
@@ -113,6 +115,9 @@ export function DomainsTable({ domains }: DomainsTableProps) {
                 </a>
               </TableCell>
               <TableCell>{domain.provider}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {domain.provider_account || "-"}
+              </TableCell>
               <TableCell className="capitalize">
                 {format(new Date(domain.expiration_date), "dd MMM yyyy", {
                   locale: es,

@@ -2,19 +2,36 @@ import { getAllDomains } from "./actions";
 import { DomainsList } from "@/components/dashboard/DomainsList";
 import { AddDomainDialog } from "@/components/dashboard/AddDomainDialog";
 import { getClientsForSelect } from "@/app/dashboard/actions";
-// Reusing getClientsForSelect from main dashboard actions since it does exactly what we need
+import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function DomainsPage() {
+  console.log(">>> [DEBUG DOMAINS] DomainsPage: Loading...");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user?.id)
+    .single();
+
+  console.log(`>>> [DEBUG DOMAINS] DomainsPage: User Role: ${profile?.role}`);
+
   const [domains, clients] = await Promise.all([
     getAllDomains(),
     getClientsForSelect(),
   ]);
 
-  // Transform backend data to match Domain interface if strictly needed,
-  // but Supabase returns should match compatible shapes mostly.
-  // We need to ensure the shape matches DomainsList expectations.
+  console.log(
+    `>>> [DEBUG DOMAINS] DomainsPage: Loaded ${domains?.length || 0} domains`,
+  );
+  console.log(
+    `>>> [DEBUG DOMAINS] DomainsPage: Loaded ${clients?.length || 0} clients for dialog`,
+  );
 
   return (
     <div className="space-y-6">

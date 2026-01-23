@@ -45,5 +45,27 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // PROTECT /dashboard/admin
+  if (request.nextUrl.pathname.startsWith("/dashboard/admin")) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+
+    // Role check
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "super_admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard"; // Redirect unauthorized to main dashboard
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }

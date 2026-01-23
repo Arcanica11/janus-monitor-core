@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Shield,
   LogOut,
+  Building2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,11 @@ export function SidebarNav({
       href: "/dashboard/projects",
       label: "Proyectos",
       icon: FolderKanban,
+    },
+    {
+      href: "/dashboard/organizations",
+      label: "Organizaciones",
+      icon: Building2,
     },
   ];
 

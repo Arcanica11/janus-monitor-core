@@ -14,14 +14,26 @@ export async function getClients() {
 }
 
 export async function getOrganizations() {
+  console.log("--> [DEBUG] getOrganizations: Iniciando ejecución...");
   try {
     const admin = createAdminClient();
-    const { data } = await admin
+    // USAR ADMIN CLIENT: Garantiza que traiga todas las organizaciones ignorando RLS
+    const { data, error } = await admin
       .from("organizations")
       .select("id, name")
       .order("name");
+
+    if (error) {
+      console.error("--> [DEBUG] getOrganizations: ERROR DB:", error);
+      return [];
+    }
+
+    console.log(
+      `--> [DEBUG] getOrganizations: Éxito. Registros encontrados: ${data?.length || 0}`,
+    );
     return data || [];
   } catch (error) {
+    console.error("--> [DEBUG] getOrganizations: Error crítico:", error);
     return [];
   }
 }
@@ -29,39 +41,67 @@ export async function getOrganizations() {
 export async function createClientAction(formData: FormData) {
   const supabase = await createClient();
 
+  // 1. Verificar Autenticación
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
+  // 2. Obtener Rol y Organización del Usuario
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, organization_id")
     .eq("id", user.id)
     .single();
+
   const isSuperAdmin = profile?.role === "super_admin";
 
+  // 3. Extraer datos del FormData y Log
   const name = formData.get("name") as string;
   const email = formData.get("contact_email") as string;
-  let orgId = formData.get("organization_id") as string;
+  const formOrgId = formData.get("organization_id") as string;
 
-  if (isSuperAdmin && !orgId) {
-    return { error: "Como Super Admin, selecciona una organización." };
-  }
-  if (!isSuperAdmin) {
-    orgId = profile?.organization_id;
+  console.log("--> [DEBUG] createClientAction: Datos recibidos:", {
+    name,
+    email,
+    formOrgId,
+    rolDetectado: profile?.role,
+    isSuperAdmin,
+  });
+
+  // 4. Determinar ID de Organización Final
+  let finalOrgId = "";
+
+  if (isSuperAdmin) {
+    if (!formOrgId) {
+      console.error(
+        "--> [DEBUG] createClientAction: Fallo validación SuperAdmin - Falta OrgID",
+      );
+      return { error: "Como Super Admin, debes seleccionar una organización." };
+    }
+    finalOrgId = formOrgId;
+  } else {
+    // Si no es admin, forzamos su organización
+    finalOrgId = profile?.organization_id;
+    if (!finalOrgId)
+      return { error: "Tu usuario no tiene organización asignada." };
   }
 
+  // 5. Insertar usando ADMIN CLIENT para evitar bloqueos por políticas
   const admin = createAdminClient();
   const { error } = await admin.from("clients").insert({
     name,
     contact_email: email,
-    organization_id: orgId,
+    organization_id: finalOrgId,
     status: "active",
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("--> [DEBUG] createClientAction: Error al insertar:", error);
+    return { error: error.message };
+  }
 
+  console.log("--> [DEBUG] createClientAction: Cliente creado con éxito");
   revalidatePath("/dashboard", "layout");
   return { success: true };
 }
